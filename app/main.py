@@ -71,4 +71,4 @@ app.openapi = custom_openapi
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=9999, reload=True, log_config=LOGGING_CONFIG)
+    uvicorn.run("main:app", host="0.0.0.0", port=9998, reload=True, log_config=LOGGING_CONFIG)

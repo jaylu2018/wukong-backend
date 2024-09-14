@@ -8,7 +8,6 @@ from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthrization
 
 
 class RoleService:
-    model = Role
 
     async def create(self, obj_in: RoleCreate) -> Role:
         role_data = obj_in.model_dump()
@@ -71,11 +70,8 @@ class RoleService:
     async def to_dict(self, role: Role):
         return await role.to_dict()
 
-    async def is_exist(self, role_name: str) -> bool:
-        return await self.model.filter(role_name=role_name).exists()
-
     async def get_by_code(self, role_code: str) -> Role | None:
-        return await self.model.filter(role_code=role_code).first()
+        return await Role.filter(role_code=role_code).first()
 
 
 role_service = RoleService()

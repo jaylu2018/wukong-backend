@@ -1,151 +1,114 @@
-from fastapi import APIRouter, Query
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from tortoise.expressions import Q
 
-from app.api.v1.utils import refresh_api_list, insert_log
-from app.core.ctx import CTX_USER_ID
-from app.models import Role, Api
-from app.models.base import LogType, LogDetailType
+from app.core.auth import get_current_user
+from app.models import Api, Role, User
+from app.models.base import LogDetailType, LogType, StatusType
+from app.schemas.apis import ApiCreate, ApiUpdate, ApiOut
 from app.schemas.base import Success, SuccessExtra
-from app.schemas.apis import ApiCreate, ApiUpdate
 from app.services.apis import api_service
+from app.services.log import log_service
 from app.services.user import user_service
 
 router = APIRouter()
 
 
-@router.get("/apis", summary="查看API列表")
-async def _(
+@router.get("/apis", summary="获取 API 列表", response_model=SuccessExtra[List[ApiOut]])
+async def get_apis(
         current: int = Query(1, description="页码"),
         size: int = Query(10, description="每页数量"),
-        path: str = Query(None, description="API路径"),
-        summary: str = Query(None, description="API简介"),
-        tags: str = Query(None, description="API模块"),
-        status: str = Query(None, description="API状态"),
+        path: Optional[str] = Query(None, description="API 路径"),
+        summary: Optional[str] = Query(None, description="API 简介"),
+        tags: Optional[str] = Query(None, description="API 标签，使用 '|' 分隔"),
+        status: Optional[StatusType] = Query(None, description="API 状态"),
+        current_user: User = Depends(get_current_user),
 ):
-    q = Q()
-    if path:
-        q &= Q(path__contains=path)
-    if summary:
-        q &= Q(summary__contains=summary)
-    if tags:
-        q &= Q(tags__contains=tags.split("|"))
-    if status:
-        q &= Q(status__contains=status)
+    search_params = {
+        "path__contains": path,
+        "summary__contains": summary,
+        "tags__contains": tags,
+        "status": status,
+    }
+    filters = {k: v for k, v in search_params.items() if v is not None}
 
-    user_id = CTX_USER_ID.get()
-    user_obj = await user_service.get(id=user_id)
-    user_role_objs: list[Role] = await user_obj.roles
-    user_role_codes = [role_obj.role_code for role_obj in user_role_objs]
-    if "R_SUPER" in user_role_codes:
-        total, api_objs = await api_service.list(page=current, page_size=size, search=q, order=["tags", "id"])
+    user_roles = await current_user.roles.all()
+    is_superuser = any(role.role_code == "R_SUPER" for role in user_roles)
+
+    if is_superuser:
+        total, apis = await api_service.list(page=current, page_size=size, order=["tags", "id"], **filters)
     else:
-        api_objs: list[Api] = []
-        for role_obj in user_role_objs:
-            api_objs.extend([api_obj for api_obj in await role_obj.apis])
+        api_ids = set()
+        for role in user_roles:
+            role_apis = await role.apis.all()
+            api_ids.update(api.id for api in role_apis)
+        total = len(api_ids)
+        apis = (
+            await Api.filter(id__in=api_ids)
+            .filter(filters)
+            .offset((current - 1) * size)
+            .limit(size)
+            .order_by("tags", "id")
+        )
 
-        unique_apis = list(set(api_objs))
-        sorted_menus = sorted(unique_apis, key=lambda x: x.id)
-        # 实现分页
-        start = (current - 1) * size
-        end = start + size
-        api_objs = sorted_menus[start:end]
-        total = len(sorted_menus)
-
-    records = []
-    for obj in api_objs:
-        data = await obj.to_dict(exclude_fields=["create_time", "update_time"])
-        data["tags"] = "|".join(data["tags"])
-        records.append(data)
-    data = {"records": records}
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetList, by_user_id=user_obj.id)
-    return SuccessExtra(data=data, total=total, current=current, size=size)
+    records = [await api_service.to_dict(api) for api in apis]
+    await log_service.create(LogType.UserLog, LogDetailType.ApiGetList, current_user.id)
+    return SuccessExtra(data=records, total=total, current=current, size=size)
 
 
-@router.get("/apis/{api_id}", summary="查看API")
-async def _(api_id: int):
-    api_obj = await api_service.get(id=api_id)
-    data = await api_obj.to_dict(exclude_fields=["id", "create_time", "update_time"])
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetOne, by_user_id=0)
+@router.get("/apis/{api_id}", summary="查看API详情", response_model=Success[ApiOut])
+async def get_api(api_id: int, current_user: User = Depends(get_current_user)):
+    api_obj = await api_service.get(api_id)
+    if not api_obj:
+        raise HTTPException(status_code=404, detail="API未找到")
+    data = await api_service.to_dict(api_obj)
+    await log_service.create(LogType.UserLog, LogDetailType.ApiGetOne, current_user.id)
     return Success(data=data)
 
 
-def build_api_tree(apis: list[Api]):
-    parent_map = {"root": {"id": "root", "children": []}}
-    # 遍历输入数据
-    for api in apis:
-        tags = api.tags
-        parent_id = "root"
-        for tag in tags:
-            node_id = f"parent${tag}"
-            # 如果当前节点不存在，则创建一个新的节点
-            if node_id not in parent_map:
-                node = {"id": node_id, "summary": tag, "children": []}
-                parent_map[node_id] = node
-                parent_map[parent_id]["children"].append(node)
-            parent_id = node_id
-        parent_map[parent_id]["children"].append({
-            "id": api.id,
-            "summary": api.summary,
-        })
-    return parent_map["root"]["children"]
-
-
-@router.get("/apis/tree/", summary="查看API树")
-async def _():
-    api_objs = await Api.all()
-    data = []
-    if api_objs:
-        data = build_api_tree(api_objs)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetTree, by_user_id=0)
-    return Success(data=data)
-
-
-@router.post("/apis", summary="创建API")
-async def _(
-        api_in: ApiCreate,
+@router.post("/apis", summary="创建API", response_model=Success[dict])
+async def create_api(
+        api_in: ApiCreate, current_user: User = Depends(get_current_user)
 ):
-    if isinstance(api_in.tags, str):
-        api_in.tags = api_in.tags.split("|")
-    new_api = await api_service.create(obj_in=api_in)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiCreateOne, by_user_id=0)
-    return Success(msg="Created Successfully", data={"created_id": new_api.id})
+    new_api = await api_service.create(api_in)
+    await log_service.create(LogType.UserLog, LogDetailType.ApiCreateOne, current_user.id)
+    return Success(msg="创建成功", data={"created_id": new_api.id})
 
 
-@router.patch("/apis/{api_id}", summary="更新API")
-async def _(
-        api_id: int,
-        api_in: ApiUpdate,
+@router.patch("/apis/{api_id}", summary="更新API", response_model=Success[dict])
+async def update_api(
+        api_id: int, api_in: ApiUpdate, current_user: User = Depends(get_current_user)
 ):
-    if isinstance(api_in.tags, str):
-        api_in.tags = api_in.tags.split("|")
-    await api_service.update(id=api_id, obj_in=api_in)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiUpdateOne, by_user_id=0)
-    return Success(msg="Update Successfully", data={"updated_id": api_id})
+    updated_api = await api_service.update(api_id, api_in)
+    if not updated_api:
+        raise HTTPException(status_code=404, detail="API未找到")
+    await log_service.create(LogType.UserLog, LogDetailType.ApiUpdateOne, current_user.id)
+    return Success(msg="更新成功", data={"updated_id": api_id})
 
 
-@router.delete("/apis/{api_id}", summary="删除API")
-async def _(
-        api_id: int,
+@router.delete("/apis/{api_id}", summary="删除API", response_model=Success[dict])
+async def delete_api(api_id: int, current_user: User = Depends(get_current_user)):
+    deleted = await api_service.remove(api_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="API未找到")
+    await log_service.create(LogType.UserLog, LogDetailType.ApiDeleteOne, current_user.id)
+    return Success(msg="删除成功", data={"deleted_id": api_id})
+
+
+@router.delete("/apis", summary="批量删除API", response_model=Success[dict])
+async def batch_delete_apis(
+        ids: str = Query(..., description="API ID列表，用逗号隔开"),
+        current_user: User = Depends(get_current_user),
 ):
-    await api_service.remove(id=api_id)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiDeleteOne, by_user_id=0)
-    return Success(msg="Deleted Successfully", data={"deleted_id": api_id})
+    api_ids = [int(api_id.strip()) for api_id in ids.split(",") if api_id.strip().isdigit()]
+    deleted_ids = await api_service.batch_remove(api_ids)
+    await log_service.create(LogType.UserLog, LogDetailType.ApiBatchDelete, current_user.id)
+    return Success(msg="批量删除成功", data={"deleted_ids": deleted_ids})
 
 
-@router.delete("/apis", summary="批量删除API")
-async def _(ids: str = Query(..., description="API ID列表, 用逗号隔开")):
-    api_ids = ids.split(",")
-    deleted_ids = []
-    for api_id in api_ids:
-        api_obj = await Api.get(id=int(api_id))
-        await api_obj.delete()
-        deleted_ids.append(int(api_id))
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiBatchDelete, by_user_id=0)
-    return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
-
-
-@router.post("/apis/refresh/", summary="刷新API列表")
-async def _():
-    await refresh_api_list()
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiRefresh, by_user_id=0)
-    return Success()
+@router.get("/apis/tree/", summary="获取API树形结构", response_model=Success[List[dict]])
+async def get_api_tree(current_user: User = Depends(get_current_user)):
+    api_tree = await api_service.get_api_tree()
+    await log_service.create(LogType.UserLog, LogDetailType.ApiGetTree, current_user.id)
+    return Success(data=api_tree)

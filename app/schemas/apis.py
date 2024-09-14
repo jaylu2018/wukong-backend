@@ -1,17 +1,15 @@
-from typing import Annotated
+from typing import Annotated, Optional, List
 from pydantic import BaseModel, Field
 
 from app.models.base import StatusType
 
 
 class BaseApi(BaseModel):
-    # path: Annotated[str | None, Field(title="请求路径", description="/api/v1/auth/login")]
-    # method: Annotated[str | None, Field(title="请求方法", description="GET")]
-    path: str | None = Field(default=None, title="请求路径", description="/api/v1/auth/login")
-    method: str | None = Field(title="请求方法", description="GET")
-    summary: Annotated[str | None, Field(title="API简介")] = None
-    tags: Annotated[str | list[str] | None, Field(title="API标签")] = None
-    status: Annotated[StatusType | None, Field()] = None
+    path: str = Field(..., title="请求路径", description="/api/v1/auth/login")
+    method: str = Field(..., title="请求方法", description="GET")
+    summary: Optional[str] = Field(None, title="API 简介")
+    tags: Optional[List[str]] = Field(None, title="API 标签")
+    status: Optional[StatusType] = Field(default=StatusType.enable, title="状态")
 
     class Config:
         allow_extra = True
@@ -24,9 +22,14 @@ class ApiSearch(BaseApi):
 
 
 class ApiCreate(BaseApi):
-    path: str = Field(default_factory=str, title="请求路径", description="/api/v1/auth/login")
-    method: str = Field(default_factory=str, title="请求方法", description="GET")
+    pass
 
 
-class ApiUpdate(BaseApi):
-    ...
+class ApiUpdate(BaseModel):
+    summary: Optional[str] = Field(None, title="API 简介")
+    tags: Optional[List[str]] = Field(None, title="API 标签")
+    status: Optional[StatusType] = Field(None, title="状态")
+
+
+class ApiOut(BaseApi):
+    id: int = Field(..., title="API ID")
