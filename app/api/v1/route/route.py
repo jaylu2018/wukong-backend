@@ -148,14 +148,14 @@ async def get_routes(current_user: User = Depends(get_current_user)):
 
 @router.post("/routes", summary="创建路由")
 async def create_route(route_in: RouteCreate, current_user: User = Depends(get_current_user)):
-    new_route = await route_service.create_route(route_in)
+    new_route = await route_service.create(route_in)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteCreateOne, by_user_id=current_user.id)
     return Success(msg="Created Successfully", data={"created_id": new_route.id})
 
 
 @router.patch("/routes/{route_id}", summary="更新路由")
 async def update_route(route_id: int, route_in: RouteUpdate, current_user: User = Depends(get_current_user)):
-    updated_route = await route_service.update_route(route_id, route_in)
+    updated_route = await route_service.update(route_id, route_in)
     if updated_route:
         await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteUpdateOne, by_user_id=current_user.id)
         return Success(msg="Updated Successfully", data={"updated_id": route_id})
@@ -164,7 +164,7 @@ async def update_route(route_id: int, route_in: RouteUpdate, current_user: User 
 
 @router.delete("/routes/{route_id}", summary="删除路由")
 async def delete_route(route_id: int, current_user: User = Depends(get_current_user)):
-    deleted = await route_service.delete_route(route_id)
+    deleted = await route_service.delete(route_id)
     if deleted:
         await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteDeleteOne, by_user_id=current_user.id)
         return Success(msg="Deleted Successfully", data={"deleted_id": route_id})
