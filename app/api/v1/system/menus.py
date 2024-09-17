@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Query, Depends, HTTPException
 from typing import List
 
-from app.api.v1.utils import insert_log
+from app.utils.public import insert_log
 from app.models import Menu, User
 from app.models.base import LogType, LogDetailType
 from app.services.menu import menu_service
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.menus import MenuCreate, MenuUpdate
-from app.core.auth import get_current_user
+from app.core.dependency import get_current_user
 
 router = APIRouter()
 

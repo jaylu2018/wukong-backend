@@ -1,13 +1,15 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-
 from app.models import User
+from app.models.base import LogType, LogDetailType
 from app.services.auth import auth_service
 from app.schemas.auth import Token, CredentialsSchema
 from app.schemas.base import Success
-from app.core.auth import get_current_user
+from app.core.dependency import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
+
+from app.utils.public import insert_log
 
 router = APIRouter()
 
@@ -16,6 +18,7 @@ router = APIRouter()
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await auth_service.authenticate_user(CredentialsSchema(user_name=form_data.username, password=form_data.password))
     access_token = auth_service.create_access_token(data={"userId": user.id, "userName": user.user_name, "tokenType": "accessToken"})
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.Token, by_user_id=user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
 

@@ -6,9 +6,9 @@ from loguru import logger
 from contextlib import asynccontextmanager
 
 from app.api import api_router
-from app.api.v1.utils import refresh_api_list
+from app.utils.public import refresh_api_list
 from app.core.config import APP_SETTINGS
-from app.core.init_app import modify_db, init_users, make_middlewares
+from app.core.init_app import modify_db, make_middlewares
 from app.log.log import LOGGING_CONFIG
 from app.models import Log
 from app.models.base import LogType, LogDetailType

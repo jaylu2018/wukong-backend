@@ -99,6 +99,12 @@ class LogDetailType(str, Enum):
     1800-1899 路由
     1900-1999 API
     """
+    Token = "1001"
+    TokenRefresh = "1002"
+    Login = "1003"
+    Logout = "1004"
+    AboutMe = "1005"
+
     SystemStart = "1101"
     SystemStop = "1102"
 
@@ -142,7 +148,7 @@ class LogDetailType(str, Enum):
     RoleCreateOne = "1512"
     RoleUpdateOne = "1513"
     RoleDeleteOne = "1514"
-    RoleBatchDeleteOne = "1515"
+    RoleBatchDelete = "1515"
 
     UserGetList = "1601"
     UserGetOne = "1611"

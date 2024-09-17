@@ -9,9 +9,18 @@ from app.core.ctx import CTX_USER_ID
 from app.core.exceptions import HTTPException
 from app.models import User, Role
 from app.models.base import StatusType
+from app.services.auth import auth_service
 from app.utils.tools import check_url
 
 oauth2_schema = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+
+async def get_current_user(token: str = Depends(oauth2_schema)) -> User:
+    token_data = auth_service.decode_token(token)
+    user = await User.get_or_none(id=token_data.userId)
+    if user is None:
+        raise HTTPException(code=401, msg="User not found")
+    return user
 
 
 def check_token(token: str) -> tuple[bool, int, Any]:

@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends
 from typing import List
 
 from app.core.ctx import CTX_USER_ID
-from app.core.dependency import DependAuth
+from app.core.dependency import DependAuth, get_current_user
 from app.models import Menu, User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.log import log_service
 from app.services.route import route_service
 from app.schemas.base import Success
 from app.schemas.route import RouteCreate, RouteUpdate
-from app.core.auth import get_current_user
+from app.utils.public import insert_log
 
 router = APIRouter()
 
@@ -60,7 +60,7 @@ async def build_route_tree(menus: List[Menu], parent_id: int = 0, simple: bool =
 
 
 @router.get("/constant-routes", summary="查看常量路由(公共路由)")
-async def _():
+async def get_constant_routes():
     """
     查看常量路由
     :return:
@@ -89,7 +89,7 @@ async def _():
 
 
 @router.get("/user-routes", summary="查看用户路由菜单", dependencies=[DependAuth])
-async def _():
+async def get_user_routes():
     """
     查看用户路由菜单, 超级管理员返回所有菜单
     :return:
@@ -133,8 +133,9 @@ async def _():
 
 
 @router.get("/{route_name}/exists", summary="路由是否存在", dependencies=[DependAuth])
-async def _(route_name: str):
+async def route_exists(route_name: str):
     is_exists = await Menu.exists(route_name=route_name)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteExists, by_user_id=CTX_USER_ID.get())
     return Success(data=is_exists)
 
 
@@ -142,14 +143,14 @@ async def _(route_name: str):
 async def get_routes(current_user: User = Depends(get_current_user)):
     routes = await route_service.get_routes()
     route_tree = await build_route_tree(routes, simple=True)
-    await log_service.create(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteGetList, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteGetList, by_user_id=current_user.id)
     return Success(data=route_tree)
 
 
 @router.post("/routes", summary="创建路由")
 async def create_route(route_in: RouteCreate, current_user: User = Depends(get_current_user)):
     new_route = await route_service.create_route(route_in)
-    await log_service.create(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteCreateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteCreateOne, by_user_id=current_user.id)
     return Success(msg="Created Successfully", data={"created_id": new_route.id})
 
 
@@ -157,7 +158,7 @@ async def create_route(route_in: RouteCreate, current_user: User = Depends(get_c
 async def update_route(route_id: int, route_in: RouteUpdate, current_user: User = Depends(get_current_user)):
     updated_route = await route_service.update_route(route_id, route_in)
     if updated_route:
-        await log_service.create(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteUpdateOne, by_user_id=current_user.id)
+        await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteUpdateOne, by_user_id=current_user.id)
         return Success(msg="Updated Successfully", data={"updated_id": route_id})
     return Success(msg="Route not found", data=None)
 
@@ -166,6 +167,6 @@ async def update_route(route_id: int, route_in: RouteUpdate, current_user: User 
 async def delete_route(route_id: int, current_user: User = Depends(get_current_user)):
     deleted = await route_service.delete_route(route_id)
     if deleted:
-        await log_service.create(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteDeleteOne, by_user_id=current_user.id)
+        await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteDeleteOne, by_user_id=current_user.id)
         return Success(msg="Deleted Successfully", data={"deleted_id": route_id})
     return Success(msg="Route not found", data=None)

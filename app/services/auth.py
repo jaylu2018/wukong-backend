@@ -1,10 +1,9 @@
 from typing import Optional
-
+from fastapi import HTTPException
 from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 
-from app.core.exceptions import HTTPException
 from app.log import logger
 from app.models import User, Log
 from app.core.config import APP_SETTINGS
@@ -30,18 +29,18 @@ class AuthService:
         user = await User.get_or_none(user_name=credentials.user_name)
         if not user:
             await Log.create(log_type=LogType.UserLog, by_user_id=0, log_detail_type=LogDetailType.UserLoginUserNameVaild)
-            raise HTTPException(code="4040", msg="用户未找到！")
+            raise HTTPException(status_code=4040, detail="用户未找到！")
 
         logger.debug(f"Input password: {credentials.password}")
         logger.debug(f"Stored hashed password: {user.password}")
 
         if not self.verify_password(credentials.password, user.password):
             await Log.create(log_type=LogType.UserLog, by_user_id=user.id, log_detail_type=LogDetailType.UserLoginErrorPassword)
-            raise HTTPException(code="4041", msg="用户名或密码不正确！")
+            raise HTTPException(status_code=4041, detail="用户名或密码不正确！")
 
         if user.status == StatusType.disable:
             await Log.create(log_type=LogType.UserLog, by_user_id=user.id, log_detail_type=LogDetailType.UserLoginForbid)
-            raise HTTPException(code="4042", msg="用户已被禁用！")
+            raise HTTPException(status_code=4042, detail="用户已被禁用！")
         return user
 
     @staticmethod
@@ -61,7 +60,7 @@ class AuthService:
             payload = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM])
             token_data = TokenPayload(**payload)
         except JWTError:
-            raise HTTPException(code="4010", msg="Could not validate credentials")
+            raise HTTPException(status_code=4010, detail="Could not validate credentials")
         return token_data
 
 
