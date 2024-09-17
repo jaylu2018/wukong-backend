@@ -1,13 +1,11 @@
 from typing import Optional
 
 from fastapi import APIRouter, Query, Depends, HTTPException
-from tortoise.expressions import Q
 
 from app.core.dependency import get_current_user
 from app.models import User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.role import role_service
-from app.services.log import log_service
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthrization
 from app.utils.public import insert_log

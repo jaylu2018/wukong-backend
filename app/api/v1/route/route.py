@@ -5,7 +5,6 @@ from app.core.ctx import CTX_USER_ID
 from app.core.dependency import DependAuth, get_current_user
 from app.models import Menu, User, Role
 from app.models.base import LogType, LogDetailType
-from app.services.log import log_service
 from app.services.route import route_service
 from app.schemas.base import Success
 from app.schemas.route import RouteCreate, RouteUpdate
