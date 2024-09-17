@@ -9,11 +9,16 @@ from app.models import User, Log
 from app.core.config import APP_SETTINGS
 from app.models.base import LogType, StatusType, LogDetailType
 from app.schemas.auth import TokenPayload, CredentialsSchema
+from app.schemas.users import UserCreate, UserUpdate
+from app.services.base import CRUDBase
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
-class AuthService:
+class AuthService(CRUDBase[User, UserCreate, UserUpdate]):
+    def __init__(self):
+        super().__init__(User)
+
     def verify_password(self, plain_password, hashed_password):
         logger.debug(f"Verifying password. Hashed password: {hashed_password}")
         try:
