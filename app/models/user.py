@@ -1,8 +1,9 @@
 from tortoise import fields
-from .base import BaseModel, GenderType, StatusType, TimestampMixin
+from .base import BaseModel, GenderType, StatusType
 
-class User(BaseModel, TimestampMixin):
-    id = fields.IntField(pk=True, description="用户ID")
+
+class User(BaseModel):
+    id = fields.IntField(primary_key=True, description="用户ID")
     user_name = fields.CharField(max_length=20, unique=True, description="用户名称")
     password = fields.CharField(max_length=128, description="密码")
     nick_name = fields.CharField(max_length=30, null=True, description="昵称")

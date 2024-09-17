@@ -1,56 +1,14 @@
-from datetime import datetime
 from enum import Enum
-from uuid import UUID
 
-from fastapi import HTTPException
 from tortoise import models, fields
-
-from app.core.config import APP_SETTINGS
-from app.utils.tools import to_lower_camel_case
 
 
 class BaseModel(models.Model):
-    async def to_dict(
-            self, include_fields: list[str] | None = None, exclude_fields: list[str] | None = None, m2m: bool = False
-    ):
-        include_fields = include_fields or []
-        exclude_fields = exclude_fields or []
-
-        d = {}
-        for field in self._meta.db_fields:
-            if (not include_fields or field in include_fields) and (not exclude_fields or field not in exclude_fields):
-                value = getattr(self, field)
-                if isinstance(value, datetime):
-                    value = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
-                elif isinstance(value, UUID):
-                    value = str(value)
-                d[to_lower_camel_case(field)] = value
-
-        if m2m:
-            for field in self._meta.m2m_fields:
-                if (not include_fields or field in include_fields) and (
-                        not exclude_fields or field not in exclude_fields
-                ):
-                    values = [value for value in await getattr(self, field).all().values()]
-                    for value in values:
-                        _value = value.copy()
-                        for k, v in _value.items():
-                            if isinstance(v, datetime):
-                                v = v.strftime(APP_SETTINGS.DATETIME_FORMAT)
-                            elif isinstance(v, UUID):
-                                v = str(v)
-                            value.pop(k)
-                            value[to_lower_camel_case(k)] = v
-                    d[to_lower_camel_case(field)] = values
-        return d
+    create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
+    update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
     class Meta:
         abstract = True
-
-
-class TimestampMixin:
-    create_time = fields.DatetimeField(auto_now_add=True)
-    update_time = fields.DatetimeField(auto_now=True)
 
 
 class EnumBase(Enum):
@@ -99,6 +57,8 @@ class LogDetailType(str, Enum):
     1800-1899 路由
     1900-1999 API
     """
+    Default = "0000"
+
     Token = "1001"
     TokenRefresh = "1002"
     Login = "1003"
@@ -201,4 +161,4 @@ class IconType(str, Enum):
     local = "2"
 
 
-__all__ = ["BaseModel", "TimestampMixin", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]
+__all__ = ["BaseModel", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]

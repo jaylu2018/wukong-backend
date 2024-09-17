@@ -1,3 +1,4 @@
+import os
 import time
 
 from app.utils.public import refresh_api_list
@@ -21,11 +22,14 @@ async def init():
 
     conn = Tortoise.get_connection("conn_system")
     # 获取所有表名
-    total, tables = await conn.execute_query('SELECT name FROM sqlite_master WHERE type="table";') # 删除所有表
+    total, tables = await conn.execute_query('SELECT name FROM sqlite_master WHERE type="table";')  # 删除所有表
     for table in tables:
         table_name = table[0]
         if table_name != "aerich":
             await conn.execute_query(f'DELETE FROM "{table_name}";')
+
+    # 获取当前脚本所在目录
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
     # 使用 SQL 文件初始化数据
     sql_files = [
@@ -39,7 +43,8 @@ async def init():
         "sql/apis.sql"
     ]
     for sql_file in sql_files:
-        with open(sql_file, "r") as f:
+        sql_file_path = os.path.join(current_dir, sql_file)
+        with open(sql_file_path, "r") as f:
             sql_commands = f.read()
             await conn.execute_script(sql_commands)  # 使用 execute_script 执行 SQL 文件
 
@@ -47,8 +52,7 @@ async def init():
 
     await Tortoise.close_connections()
 
-
-while True:
-    run_async(init())
-    logger.info("Reset all tables")
-    time.sleep(60 * 10)
+# while True:
+#     run_async(init())
+#     logger.info("Reset all tables")
+#     time.sleep(60 * 10)

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.models import Role, User
 from app.schemas.users import UserCreate, UserUpdate
@@ -38,9 +38,8 @@ class UserService(CRUDBase[User, UserCreate, UserUpdate]):
         roles = await Role.filter(role_code__in=role_codes)
         await user.roles.add(*roles)
 
-    @staticmethod
-    async def to_dict_with_roles(user: User) -> dict:
-        user_dict = await user.to_dict(exclude_fields=["password"])
+    async def to_dict_with_roles(self, user: User) -> dict:
+        user_dict = await super().to_dict(user)
         roles = await user.roles.all()
         user_dict["roles"] = [role.role_code for role in roles]
         return user_dict

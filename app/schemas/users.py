@@ -1,7 +1,9 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field, BaseModel, ConfigDict
 
 from app.models.base import GenderType, StatusType
+from app.schemas.base import BaseSchema
+
 
 class UserBase(BaseModel):
     user_name: str = Field(..., alias="userName", max_length=20)
@@ -12,14 +14,14 @@ class UserBase(BaseModel):
     roles: Optional[List[str]] = Field(default_factory=list, alias="userRoles")
     status: StatusType = Field(StatusType.enable)
 
-    class Config:
-        populate_by_name = True
-        use_enum_values = True
+    model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
+
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=128)
 
-class UserUpdate(BaseModel):
+
+class UserUpdate(BaseSchema):
     user_email: Optional[EmailStr] = Field(None, alias="userEmail")
     user_gender: Optional[GenderType] = Field(None, alias="userGender")
     nick_name: Optional[str] = Field(None, alias="nickName", max_length=30)
@@ -28,11 +30,10 @@ class UserUpdate(BaseModel):
     status: Optional[StatusType]
     password: Optional[str] = Field(None, min_length=6, max_length=128)
 
-    class Config:
-        populate_by_name = True
-        use_enum_values = True
+    model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
 
-class UserOut(BaseModel):
+
+class UserOut(BaseSchema):
     id: int
     user_name: str = Field(..., alias="userName")
     user_email: EmailStr = Field(..., alias="userEmail")
@@ -42,7 +43,4 @@ class UserOut(BaseModel):
     roles: List[str] = Field(..., alias="userRoles")
     status: StatusType
 
-    class Config:
-        populate_by_name = True
-        from_attributes = True
-        use_enum_values = True
+    model_config = ConfigDict(populate_by_name=True, use_enum_values=True, from_attributes=True)

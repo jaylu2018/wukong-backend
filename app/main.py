@@ -6,11 +6,11 @@ from loguru import logger
 from contextlib import asynccontextmanager
 
 from app.api import api_router
-from app.utils.public import refresh_api_list
+from app.utils.public import refresh_api_list, insert_log
 from app.core.config import APP_SETTINGS
-from app.core.init_app import modify_db, make_middlewares
+from app.core.migrate import migrate_db
+from app.core.middleware import make_middlewares
 from app.log.log import LOGGING_CONFIG
-from app.models import Log
 from app.models.base import LogType, LogDetailType
 
 
@@ -18,15 +18,16 @@ from app.models.base import LogType, LogDetailType
 async def lifespan(_app: FastAPI):
     start_time = time.time()
     try:
-        await modify_db()
+        await migrate_db()
         await refresh_api_list()
-        await Log.create(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStart)
+
+        await insert_log(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStart)
         yield
     finally:
         end_time = time.time()
         runtime = end_time - start_time
         logger.info(f"App {_app.title} runtime: {runtime} seconds")  # noqa
-        await Log.create(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStop)
+        await insert_log(log_type=LogType.SystemLog, log_detail_type=LogDetailType.SystemStop)
 
 
 app = FastAPI(

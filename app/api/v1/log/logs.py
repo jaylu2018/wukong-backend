@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Query, Depends
-from tortoise.expressions import Q
 
 from app.core.dependency import get_current_user
 from app.models import User
@@ -20,14 +19,13 @@ async def get_logs(
         log_detail_type: str = Query(None, description="日志详细类型"),
         current_user: User = Depends(get_current_user)
 ):
-    q = Q()
-    if log_type:
-        q &= Q(log_type=log_type)
-    if log_detail_type:
-        q &= Q(log_detail_type=log_detail_type)
-
-    total, log_objs = await log_service.list(page=current, page_size=size, search=q, order=["-id"])
-    records = [await log_service.to_dict(log) for log in log_objs]
+    search_params = {
+        "log_type": log_type,
+        "log_detail_type": log_detail_type,
+    }
+    filters = {k: v for k, v in search_params.items() if v is not None}
+    total, log_objs = await log_service.list(page=current, page_size=size, order=["-id"], **filters)
+    records = [await log_service.to_dict(log, exclude_fields=["by_user", "api_log"]) for log in log_objs]
     data = {"records": records}
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogGetList, by_user_id=current_user.id)
     return SuccessExtra(data=data, total=total, current=current, size=size)
@@ -36,14 +34,14 @@ async def get_logs(
 @router.get("/logs/{log_id}", summary="查看日志")
 async def get_log(log_id: int, current_user: User = Depends(get_current_user)):
     log_obj = await log_service.get(id=log_id)
-    data = await log_service.to_dict(log_obj, exclude_fields=["id", "create_time", "update_time"])
+    data = await log_service.to_dict(log_obj, exclude_fields=["by_user", "api_log"])
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogGetOne, by_user_id=current_user.id)
     return Success(data=data)
 
 
 @router.patch("/logs/{log_id}", summary="更新日志")
 async def update_log(log_id: int, log_in: LogUpdate, current_user: User = Depends(get_current_user)):
-    await log_service.update(log_id=log_id, obj_in=log_in.model_dump())
+    await log_service.update(log_id, log_in)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogUpdate, by_user_id=current_user.id)
     return Success(msg="Update Successfully")
 

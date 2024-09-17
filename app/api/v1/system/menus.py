@@ -27,7 +27,7 @@ async def build_menu_tree(menus: List[Menu], parent_id: int = 0, simple: bool = 
             if simple:
                 menu_dict = {"id": menu.id, "label": menu.menu_name, "pId": menu.parent_id}
             else:
-                menu_dict = await menu.to_dict()
+                menu_dict = await menu_service.to_dict(menu)
                 menu_dict["buttons"] = [await button.to_dict() for button in await menu.buttons]
             if children:
                 menu_dict["children"] = children
@@ -62,7 +62,7 @@ async def get_menu(menu_id: int, current_user: User = Depends(get_current_user))
     if not menu:
         raise HTTPException(status_code=404, detail="Menu not found")
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetOne, by_user_id=current_user.id)
-    return Success(data=await menu.to_dict())
+    return Success(data=await menu_service.to_dict(menu))
 
 
 @router.post("/menus", summary="创建菜单")

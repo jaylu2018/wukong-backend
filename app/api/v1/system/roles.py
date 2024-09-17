@@ -7,7 +7,7 @@ from app.models import User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.role import role_service
 from app.schemas.base import Success, SuccessExtra
-from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthrization
+from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthorization
 from app.utils.public import insert_log
 
 router = APIRouter()
@@ -87,7 +87,7 @@ async def get_role_menus(role_id: int, current_user: User = Depends(get_current_
 
 
 @router.patch("/roles/{role_id}/menus", summary="更新角色菜单")
-async def update_role_menus(role_id: int, role_in: RoleUpdateAuthrization, current_user: User = Depends(get_current_user)):
+async def update_role_menus(role_id: int, role_in: RoleUpdateAuthorization, current_user: User = Depends(get_current_user)):
     updated_role = await role_service.update_menus(role_id, role_in)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RoleUpdateMenus, by_user_id=current_user.id)
     return Success(msg="Updated Successfully", data={"updated_menu_ids": role_in.menu_ids, "updated_role_home": updated_role.role_home})

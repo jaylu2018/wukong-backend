@@ -1,9 +1,9 @@
 from tortoise import fields
-from .base import BaseModel, TimestampMixin, StatusType
+from .base import BaseModel, StatusType
 
 
-class Role(BaseModel, TimestampMixin):
-    id = fields.IntField(pk=True, description="角色ID")
+class Role(BaseModel):
+    id = fields.IntField(primary_key=True, description="角色ID")
     role_name = fields.CharField(max_length=20, unique=True, description="角色名称")
     role_code = fields.CharField(max_length=20, unique=True, description="角色编码")
     role_desc = fields.CharField(max_length=500, null=True, blank=True, description="角色描述")

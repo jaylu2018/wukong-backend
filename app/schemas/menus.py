@@ -1,16 +1,17 @@
 from typing import Annotated, Any
 
-from pydantic import BaseModel, Field
+from pydantic import Field, ConfigDict
 
 from app.models.base import MenuType, IconType
+from app.schemas.base import BaseSchema
 
 
-class ButtonBase(BaseModel):
+class ButtonBase(BaseSchema):
     button_code: str = Field(alias="buttonCode", description="按钮编码")
     button_desc: str = Field(alias="buttonDesc", description="按钮描述")
 
 
-class MenuBase(BaseModel):
+class MenuBase(BaseSchema):
     menu_name: str = Field(alias="menuName", description="菜单名称")
     menu_type: MenuType = Field(alias="menuType", description="菜单类型")
     route_name: str = Field(alias="routeName", description="路由名称")
@@ -40,9 +41,7 @@ class MenuBase(BaseModel):
     props: Annotated[bool | None, Field(description="是否为首路由")] = None
     constant: Annotated[bool | None, Field(description="是否为公共路由")] = None
 
-    class Config:
-        allow_extra = True
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MenuCreate(MenuBase):

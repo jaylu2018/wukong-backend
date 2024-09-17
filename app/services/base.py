@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Generic, TypeVar, Type, List, Optional, Any, Dict
 from tortoise.models import Model
 from tortoise import fields
@@ -54,22 +55,34 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         deleted_count = await self.model.filter(id__in=ids).delete()
         return deleted_count
 
-    async def to_dict(self, obj: ModelType, exclude_fields: List[str] = None) -> dict:
+    async def to_dict(self, obj: ModelType, exclude_fields: List[str] = None, visited: set = None) -> dict:
         if exclude_fields is None:
             exclude_fields = []
+        if visited is None:
+            visited = set()
+        obj_id = (type(obj), obj.pk)
+        if obj_id in visited:
+            return {}  # 或者返回 {"id": obj.pk}
+        visited.add(obj_id)
         data = {}
         for field_name, field in obj._meta.fields_map.items():
             if field_name in exclude_fields:
                 continue
             value = getattr(obj, field_name)
-            if isinstance(field, fields.relational.ManyToManyFieldInstance):
-                related_objects = await value.all()
-                data[field_name] = [await self.to_dict(rel_obj) for rel_obj in related_objects]
-            elif isinstance(field, fields.relational.ForeignKeyFieldInstance):
-                related_object = await value
-                data[field_name] = await self.to_dict(related_object) if related_object else None
+            if isinstance(field, fields.relational.ForeignKeyFieldInstance):
+                # 处理 ForeignKey，获取关联对象的字典表示
+                related_obj = await value
+                value = await self.to_dict(related_obj, exclude_fields, visited) if related_obj else None
+            elif isinstance(field, fields.relational.ManyToManyFieldInstance):
+                # 处理 ManyToManyField，获取关联对象列表的字典表示
+                related_manager = getattr(obj, field_name)
+                related_objs = await related_manager.all()
+                value = [await self.to_dict(rel_obj, exclude_fields, visited) for rel_obj in related_objs]
             elif isinstance(field, fields.BackwardFKRelation):
-                continue  # 忽略反向关系
-            else:
-                data[field_name] = value
+                # 忽略反向关系
+                continue
+            elif isinstance(value, Enum):
+                # 处理枚举类型
+                value = value.value
+            data[field_name] = value
         return data

@@ -1,10 +1,10 @@
-from pydantic import BaseModel
 from typing import Optional
 
 from app.models.base import MenuType, IconType, StatusType
+from app.schemas.base import BaseSchema
 
 
-class RouteBase(BaseModel):
+class RouteBase(BaseSchema):
     parent_id: int
     menu_type: MenuType
     menu_name: str

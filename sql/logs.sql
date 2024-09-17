@@ -1,0 +1,3 @@
+INSERT INTO logs (create_time, update_time, id, trace_id, log_type, log_detail_type, detail, stack_trace, api_log_id, by_user_id) VALUES ('2024-09-18 01:37:29.198425+08:00', '2024-09-18 01:37:29.198437+08:00', 1, null, '4', '1101', null, null, null, null);
+INSERT INTO logs (create_time, update_time, id, trace_id, log_type, log_detail_type, detail, stack_trace, api_log_id, by_user_id) VALUES ('2024-09-18 01:37:52.441723+08:00', '2024-09-18 01:37:52.441739+08:00', 2, null, '4', '1102', null, null, null, null);
+INSERT INTO logs (create_time, update_time, id, trace_id, log_type, log_detail_type, detail, stack_trace, api_log_id, by_user_id) VALUES ('2024-09-18 01:38:19.101692+08:00', '2024-09-18 01:38:19.102730+08:00', 3, null, '4', '1101', null, null, null, null);

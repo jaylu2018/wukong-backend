@@ -1,9 +1,9 @@
 from tortoise import fields
-from .base import BaseModel, TimestampMixin, MethodType, StatusType
+from .base import BaseModel, MethodType, StatusType
 
 
-class Api(BaseModel, TimestampMixin):
-    id = fields.IntField(pk=True, description="API ID")
+class Api(BaseModel):
+    id = fields.IntField(primary_key=True, description="API ID")
     path = fields.CharField(max_length=100, description="API路径")
     method = fields.CharEnumField(enum_type=MethodType, description="请求方法")
     summary = fields.CharField(max_length=500, description="请求简介")

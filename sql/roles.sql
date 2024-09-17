@@ -1,1 +1,1 @@
-INSERT INTO roles (create_time, update_time, id, role_name, role_code, role_desc, role_home, status) VALUES ('2024-09-12 20:31:40.578726+08:00', '2024-09-12 20:31:40.578733+08:00', 1, '超级管理员', 'R_SUPER', '超级管理员', 'home', '1');
+INSERT INTO roles (create_time, update_time, id, role_name, role_code, role_desc, role_home, status) VALUES ('2024-09-18 01:37:29.107160+08:00', '2024-09-18 01:37:29.107167+08:00', 1, '超级管理员', 'R_SUPER', '超级管理员', 'home', '1');

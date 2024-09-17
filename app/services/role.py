@@ -3,7 +3,7 @@ from typing import List, Optional, Any
 from fastapi import HTTPException
 
 from app.models import Role, Menu
-from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthrization
+from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthorization
 from app.services.base import CRUDBase
 
 

@@ -1,40 +1,22 @@
-from typing import Any, Generic, TypeVar, Optional
+from datetime import datetime
+from typing import Generic, TypeVar, Optional, Annotated
 
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 T = TypeVar('T')
 
 
-class Custom(JSONResponse):
-    def __init__(
-            self,
-            code: str | int = "0000",
-            status_code: int = 200,
-            msg: str = "OK",
-            data: Any = None,
-            **kwargs,
-    ):
-        content = {"code": str(code), "msg": msg, "data": data}
-        content.update(kwargs)
-        super().__init__(content=content, status_code=status_code)
+class BaseSchema(BaseModel):
+    create_time: Annotated[datetime | None, Field(alias="creationTime", description="创建时间")] = None
+    update_time: Annotated[datetime | None, Field(alias="updateTime", description="更新时间")] = None
+
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
 
 class Success(BaseModel, Generic[T]):
     code: str = Field(default="2000")
     msg: str = Field(default="Success")
     data: Optional[T] = None
-
-
-class Fail(Custom):
-    def __init__(
-            self,
-            code: str | int = "4000",
-            msg: str = "OK",
-            data: Any = None,
-            **kwargs,
-    ):
-        super().__init__(code=code, msg=msg, data=data, status_code=200, **kwargs)
 
 
 class SuccessExtra(BaseModel, Generic[T]):

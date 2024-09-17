@@ -1,9 +1,9 @@
 from tortoise import fields
-from .base import BaseModel, TimestampMixin, MenuType, IconType, StatusType
+from .base import BaseModel, MenuType, IconType, StatusType
 
 
-class Menu(BaseModel, TimestampMixin):
-    id = fields.IntField(pk=True, description="菜单ID")
+class Menu(BaseModel):
+    id = fields.IntField(primary_key=True, description="菜单ID")
     menu_name = fields.CharField(max_length=100, description="菜单名称")
     menu_type = fields.CharEnumField(enum_type=MenuType, description="菜单类型")
     route_name = fields.CharField(max_length=100, description="路由名称")
