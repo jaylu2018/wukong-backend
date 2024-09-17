@@ -63,13 +63,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
                 continue
             value = getattr(obj, field_name)
             if isinstance(field, fields.relational.ManyToManyFieldInstance):
-                # 获取关联对象列表
                 related_objects = await value.all()
-                # 根据需要提取关联对象的信息，例如只提取 ID
-                data[field_name] = [rel_obj.id for rel_obj in related_objects]
+                data[field_name] = [await self.to_dict(rel_obj) for rel_obj in related_objects]
+            elif isinstance(field, fields.relational.ForeignKeyFieldInstance):
+                related_object = await value
+                data[field_name] = await self.to_dict(related_object) if related_object else None
             elif isinstance(field, fields.BackwardFKRelation):
-                # 处理反向关系字段，避免序列化问题
-                continue
+                continue  # 忽略反向关系
             else:
                 data[field_name] = value
         return data
