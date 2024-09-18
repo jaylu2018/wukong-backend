@@ -6,7 +6,7 @@ import time
 from app.core.dependency import get_current_user, PermissionService
 from app.models.base import LogType, LogDetailType
 from app.schemas.base import Success, SuccessExtra
-from app.utils.public import insert_log
+from app.core.log import insert_log
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -44,8 +44,6 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
     def _add_routes(self):
         @self.router.get("/", summary=f"获取{self.model.__name__}列表")
         async def list_items(
-                request: Request,
-                current_user: UserType = Depends(self.get_current_user),
                 _: Any = Depends(self.permission_dependency),
                 page: int = Query(1, description="页码"),
                 page_size: int = Query(10, description="每页数量"),
@@ -57,18 +55,11 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                 return SuccessExtra(data=data, total=total, current=page, size=page_size)
             finally:
                 duration = time.time() - start_time
-                await insert_log(
-                    log_type=self.log_type,
-                    log_detail_type=self.log_detail_types["list"],
-                    by_user_id=current_user.id,
-                    # detail=f"请求耗时 {duration:.2f} 秒"
-                )
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")
 
         @self.router.get(f"/{{{self.pk}}}", summary=f"获取单个{self.model.__name__}")
         async def get_item(
-                request: Request,
                 pk: int,
-                current_user: UserType = Depends(self.get_current_user),
                 _: Any = Depends(self.permission_dependency),
         ):
             start_time = time.time()
@@ -80,18 +71,11 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                 return Success(data=data)
             finally:
                 duration = time.time() - start_time
-                await insert_log(
-                    log_type=self.log_type,
-                    log_detail_type=self.log_detail_types["retrieve"],
-                    by_user_id=current_user.id,
-                    # detail=f"请求耗时 {duration:.2f} 秒"
-                )
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["retrieve"], detail=f"请求耗时 {duration:.2f} 秒")
 
         @self.router.post("/", summary=f"创建{self.model.__name__}")
         async def create_item(
-                request: Request,
                 item_in: CreateSchemaType,
-                current_user: UserType = Depends(self.get_current_user),
                 _: Any = Depends(self.permission_dependency),
         ):
             start_time = time.time()
@@ -100,19 +84,12 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                 return Success(data={"id": item.id})
             finally:
                 duration = time.time() - start_time
-                await insert_log(
-                    log_type=self.log_type,
-                    log_detail_type=self.log_detail_types["create"],
-                    by_user_id=current_user.id,
-                    # detail=f"请求耗时 {duration:.2f} 秒"
-                )
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["create"], detail=f"请求耗时 {duration:.2f} 秒")
 
         @self.router.patch(f"/{{{self.pk}}}", summary=f"更新{self.model.__name__}")
         async def update_item(
-                request: Request,
                 pk: int,
                 item_in: UpdateSchemaType,
-                current_user: UserType = Depends(self.get_current_user),
                 _: Any = Depends(self.permission_dependency),
         ):
             start_time = time.time()
@@ -123,18 +100,11 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                 return Success(data={"id": pk})
             finally:
                 duration = time.time() - start_time
-                await insert_log(
-                    log_type=self.log_type,
-                    log_detail_type=self.log_detail_types["update"],
-                    by_user_id=current_user.id,
-                    # detail=f"请求耗时 {duration:.2f} 秒"
-                )
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["update"], detail=f"请求耗时 {duration:.2f} 秒")
 
         @self.router.delete(f"/{{{self.pk}}}", summary=f"删除{self.model.__name__}")
         async def delete_item(
-                request: Request,
                 pk: int,
-                current_user: UserType = Depends(self.get_current_user),
                 _: Any = Depends(self.permission_dependency),
         ):
             start_time = time.time()
@@ -145,9 +115,4 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                 return Success(data={"id": pk})
             finally:
                 duration = time.time() - start_time
-                await insert_log(
-                    log_type=self.log_type,
-                    log_detail_type=self.log_detail_types["delete"],
-                    by_user_id=current_user.id,
-                    # detail=f"请求耗时 {duration:.2f} 秒"
-                )
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["delete"], detail=f"请求耗时 {duration:.2f} 秒")

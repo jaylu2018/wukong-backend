@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 
-from app.log import logger
+from app.core.log import logger
 from app.models import User, Log
 from app.core.config import APP_SETTINGS
 from app.models.base import LogType, StatusType, LogDetailType

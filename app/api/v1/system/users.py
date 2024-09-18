@@ -7,7 +7,7 @@ from app.models.base import LogType, LogDetailType
 from app.schemas.base import Success, SuccessExtra
 from app.schemas.users import UserCreate, UserOut, UserUpdate
 from app.services.user import user_service
-from app.utils.public import insert_log
+from app.core.log import insert_log
 
 router = APIRouter()
 
@@ -35,7 +35,7 @@ async def get_users(
     filters = {k: v for k, v in search_params.items() if v is not None}
     total, user_objs = await user_service.list(page=current, page_size=size, **filters)
     records = [await user_service.to_dict_with_roles(user) for user in user_objs]
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserGetList, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserGetList)
     return SuccessExtra(data=records, total=total, current=current, size=size)
 
 
@@ -45,14 +45,14 @@ async def get_user(user_id: int, current_user: User = Depends(get_current_user))
     if not user_obj:
         raise HTTPException(status_code=404, detail="User not found")
     user_data = await user_service.to_dict_with_roles(user_obj)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserGetOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserGetOne)
     return Success(data=user_data)
 
 
 @router.post("/users", summary="创建用户", response_model=Success[dict])
 async def create_user(user_in: UserCreate, current_user: User = Depends(get_current_user)):
     new_user = await user_service.create(user_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserCreateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserCreateOne)
     return Success(msg="Created Successfully", data={"created_id": new_user.id})
 
 
@@ -61,7 +61,7 @@ async def update_user(user_id: int, user_in: UserUpdate, current_user: User = De
     user = await user_service.update_user(user_id, user_in)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserUpdateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserUpdateOne)
     return Success(msg="Updated Successfully", data={"updated_id": user_id})
 
 
@@ -70,7 +70,7 @@ async def delete_user(user_id: int, current_user: User = Depends(get_current_use
     deleted = await user_service.delete(user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="User not found")
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserDeleteOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserDeleteOne)
     return Success(msg="Deleted Successfully", data={"deleted_id": user_id})
 
 
@@ -78,5 +78,5 @@ async def delete_user(user_id: int, current_user: User = Depends(get_current_use
 async def batch_delete_users(ids: str = Query(..., description="用户ID列表, 用逗号隔开"), current_user: User = Depends(get_current_user)):
     user_ids = [int(user_id.strip()) for user_id in ids.split(",") if user_id.strip().isdigit()]
     deleted_ids = await user_service.batch_delete(user_ids)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserBatchDeleteOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserBatchDeleteOne)
     return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})

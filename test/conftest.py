@@ -32,6 +32,7 @@ async def initialize_tests():
         }
     )
     await Tortoise.generate_schemas()
+
     # 插入初始用户数据
     await init()
 
@@ -53,9 +54,7 @@ async def auth_headers(async_client: AsyncClient):
         "password": "123456"
     }
     response = await async_client.post("/api/v1/auth/token", data=login_data)
-    print(response.url)
     assert response.status_code == 200
-    data = response.json()
-    token = data["access_token"]
+    token = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     return headers

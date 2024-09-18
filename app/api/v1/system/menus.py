@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Depends, HTTPException
 from typing import List
 
-from app.utils.public import insert_log
+from app.core.log import insert_log
 from app.models import Menu, User
 from app.models.base import LogType, LogDetailType
 from app.services.menu import menu_service
@@ -44,7 +44,7 @@ async def get_menus(
     total, menus = await menu_service.list(page=current, page_size=size, order=["id"])
     menu_tree = await build_menu_tree(menus, simple=False)
     data = {"records": menu_tree}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetList, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetList)
     return SuccessExtra(data=data, total=total, current=current, size=size)
 
 
@@ -52,7 +52,7 @@ async def get_menus(
 async def get_menu_tree(current_user: User = Depends(get_current_user)):
     menus = await menu_service.get_non_constant_menus()
     menu_tree = await build_menu_tree(menus, simple=True)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetTree, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetTree)
     return Success(data=menu_tree)
 
 
@@ -61,28 +61,28 @@ async def get_menu(menu_id: int, current_user: User = Depends(get_current_user))
     menu = await menu_service.get(id=menu_id)
     if not menu:
         raise HTTPException(status_code=404, detail="Menu not found")
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetOne)
     return Success(data=await menu_service.to_dict(menu))
 
 
 @router.post("/menus", summary="创建菜单")
 async def create_menu(menu_in: MenuCreate, current_user: User = Depends(get_current_user)):
     new_menu = await menu_service.create(menu_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuCreateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuCreateOne)
     return Success(msg="Created Successfully", data={"created_id": new_menu.id})
 
 
 @router.patch("/menus/{menu_id}", summary="更新菜单")
 async def update_menu(menu_id: int, menu_in: MenuUpdate, current_user: User = Depends(get_current_user)):
     updated_menu = await menu_service.update(menu_id, menu_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuUpdateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuUpdateOne)
     return Success(msg="Updated Successfully", data={"updated_id": menu_id})
 
 
 @router.delete("/menus/{menu_id}", summary="删除菜单")
 async def delete_menu(menu_id: int, current_user: User = Depends(get_current_user)):
     await menu_service.remove(menu_id)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuDeleteOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuDeleteOne)
     return Success(msg="Deleted Successfully", data={"deleted_id": menu_id})
 
 
@@ -90,14 +90,14 @@ async def delete_menu(menu_id: int, current_user: User = Depends(get_current_use
 async def batch_delete_menus(ids: str = Query(description="菜单ID列表, 用逗号隔开"), current_user: User = Depends(get_current_user)):
     menu_ids = [int(id) for id in ids.split(",")]
     await menu_service.batch_remove(menu_ids)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuBatchDeleteOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuBatchDeleteOne)
     return Success(msg="Deleted Successfully", data={"deleted_ids": menu_ids})
 
 
 @router.get("/menus/pages/", summary="查看一级菜单")
 async def get_first_level_menus(current_user: User = Depends(get_current_user)):
     menus = await menu_service.get_first_level_menus()
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetPages, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetPages)
     return Success(data=[menu.route_name for menu in menus])
 
 
@@ -138,5 +138,5 @@ async def get_menu_button_tree(current_user: User = Depends(get_current_user)):
     if menu_objs:
         data = await build_menu_button_tree(menu_objs)
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetButtonsTree, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetButtonsTree)
     return Success(data=data)

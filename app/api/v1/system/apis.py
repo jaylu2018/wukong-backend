@@ -8,7 +8,7 @@ from app.models.base import LogDetailType, LogType, StatusType
 from app.schemas.apis import ApiCreate, ApiUpdate, ApiOut
 from app.schemas.base import Success, SuccessExtra
 from app.services.apis import api_service
-from app.utils.public import insert_log
+from app.core.log import insert_log
 
 router = APIRouter()
 
@@ -51,7 +51,7 @@ async def get_apis(
         )
 
     records = [await api_service.to_dict(api) for api in apis]
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetList, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetList)
     return SuccessExtra(data=records, total=total, current=current, size=size)
 
 
@@ -61,7 +61,7 @@ async def get_api(api_id: int, current_user: User = Depends(get_current_user)):
     if not api_obj:
         raise HTTPException(status_code=404, detail="API未找到")
     data = await api_service.to_dict(api_obj)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetOne)
     return Success(data=data)
 
 
@@ -70,7 +70,7 @@ async def create_api(
         api_in: ApiCreate, current_user: User = Depends(get_current_user)
 ):
     new_api = await api_service.create(api_in)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiCreateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiCreateOne)
     return Success(msg="创建成功", data={"created_id": new_api.id})
 
 
@@ -81,7 +81,7 @@ async def update_api(
     updated_api = await api_service.update(api_id, api_in)
     if not updated_api:
         raise HTTPException(status_code=404, detail="API未找到")
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiUpdateOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiUpdateOne)
     return Success(msg="更新成功", data={"updated_id": api_id})
 
 
@@ -90,7 +90,7 @@ async def delete_api(api_id: int, current_user: User = Depends(get_current_user)
     deleted = await api_service.remove(api_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="API未找到")
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiDeleteOne, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiDeleteOne)
     return Success(msg="删除成功", data={"deleted_id": api_id})
 
 
@@ -101,12 +101,12 @@ async def batch_delete_apis(
 ):
     api_ids = [int(api_id.strip()) for api_id in ids.split(",") if api_id.strip().isdigit()]
     deleted_ids = await api_service.batch_remove(api_ids)
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiBatchDelete, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiBatchDelete)
     return Success(msg="批量删除成功", data={"deleted_ids": deleted_ids})
 
 
 @router.get("/apis/tree/", summary="获取API树形结构", response_model=Success[List[dict]])
 async def get_api_tree(current_user: User = Depends(get_current_user)):
     api_tree = await api_service.get_api_tree()
-    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetTree, by_user_id=current_user.id)
+    await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.ApiGetTree)
     return Success(data=api_tree)

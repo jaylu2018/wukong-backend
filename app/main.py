@@ -2,15 +2,15 @@ import time
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from loguru import logger
+from starlette.middleware import Middleware
 from contextlib import asynccontextmanager
 
 from app.api import api_router
-from app.utils.public import refresh_api_list, insert_log
+from app.core.log import insert_log, logger
+from app.utils.public import refresh_api_list
 from app.core.config import APP_SETTINGS
 from app.core.migrate import migrate_db
-from app.core.middleware import make_middlewares
-from app.log.log import LOGGING_CONFIG
+from app.core.middleware import make_middlewares, TraceIDMiddleware
 from app.models.base import LogType, LogDetailType
 
 
@@ -35,7 +35,7 @@ app = FastAPI(
     description=APP_SETTINGS.APP_DESCRIPTION,
     version=APP_SETTINGS.VERSION,
     openapi_url="/openapi.json",
-    middleware=make_middlewares(),
+    middleware=make_middlewares() + [Middleware(TraceIDMiddleware)],
     lifespan=lifespan
 )
 
@@ -72,4 +72,4 @@ app.openapi = custom_openapi
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=9998, reload=True, log_config=LOGGING_CONFIG)
+    uvicorn.run("main:app", host="0.0.0.0", port=9997, reload=True)

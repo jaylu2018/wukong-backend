@@ -1,5 +1,4 @@
 import os
-import time
 
 from app.utils.public import refresh_api_list
 from app.core.config import TORTOISE_ORM
@@ -52,7 +51,7 @@ async def init():
 
     await Tortoise.close_connections()
 
-# while True:
-#     run_async(init())
-#     logger.info("Reset all tables")
-#     time.sleep(60 * 10)
+
+if __name__ == "__main__":
+    run_async(init())
+    logger.info("Reset all tables")

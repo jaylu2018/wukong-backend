@@ -5,7 +5,7 @@ from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import APP_SETTINGS
-from app.core.ctx import CTX_USER_ID
+from app.core.context_vars import user_id_var
 from app.core.exceptions import HTTPException
 from app.models import User, Role
 from app.models.base import StatusType
@@ -20,6 +20,7 @@ async def get_current_user(token: str = Depends(oauth2_schema)) -> User:
     user = await User.get_or_none(id=token_data.userId)
     if user is None:
         raise HTTPException(code=401, msg="User not found")
+    user_id_var.set(user.id)
     return user
 
 
@@ -39,8 +40,8 @@ def check_token(token: str) -> tuple[bool, int, Any]:
 class AuthService:
     @classmethod
     async def is_authed(cls, token: str = Depends(oauth2_schema)) -> User | None:
-        user_id = CTX_USER_ID.get()
-        if user_id == 0:
+        user_id = user_id_var.get()
+        if not user_id:
             status, code, decode_data = check_token(token)
             if not status:
                 raise HTTPException(code=code, msg=decode_data)
@@ -53,7 +54,7 @@ class AuthService:
         user = await User.filter(id=user_id).first()
         if not user:
             raise HTTPException(code="4040", msg=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
-        CTX_USER_ID.set(int(user_id))
+        user_id_var.set(user_id)
         return user
 
 

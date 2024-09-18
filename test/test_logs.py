@@ -12,7 +12,6 @@ async def test_get_logs(async_client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_get_log(async_client: AsyncClient, auth_headers):
-    # 假设日志ID为1
     response = await async_client.get(f"/api/v1/log/logs/1", headers=auth_headers)
     assert response.status_code == 200
     json_data = response.json()
