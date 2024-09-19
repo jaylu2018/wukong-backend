@@ -115,7 +115,7 @@ class LogDetailType(str, Enum):
     UserCreateOne = "1612"
     UserUpdateOne = "1613"
     UserDeleteOne = "1614"
-    UserBatchDeleteOne = "1615"
+    UserBatchDelete = "1615"
 
     LogGetList = "1701"
     LogGetOne = "1711"
@@ -125,9 +125,13 @@ class LogDetailType(str, Enum):
 
     RouteGetList = "1801"
     RouteExists = "1802"
+    RouteGetUserRoutes = "1803"
+    RouteGetConstantRoutes = "1804"
+    RouteGetOne = "1810"
     RouteCreateOne = "1811"
     RouteUpdateOne = "1812"
     RouteDeleteOne = "1813"
+    RouteBatchDelete = "1814"
 
     ApiGetList = "1901"
     ApiGetTree = "1902"

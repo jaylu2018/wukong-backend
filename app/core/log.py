@@ -44,8 +44,9 @@ async def insert_log(
         detail: Optional[str] = None,
         stack_trace: Optional[str] = None,
 ):
-    trace_id = trace_id_var.get() or None
-    by_user_id = user_id_var.get() or None
+    trace_id = trace_id_var.get()
+    by_user_id = user_id_var.get()
+    print(by_user_id, trace_id)
     await Log.create(
         log_type=log_type,
         log_detail_type=log_detail_type,

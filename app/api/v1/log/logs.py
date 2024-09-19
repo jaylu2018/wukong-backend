@@ -17,7 +17,6 @@ async def get_logs(
         size: int = Query(10, description="每页数量"),
         log_type: str = Query(None, description="日志类型"),
         log_detail_type: str = Query(None, description="日志详细类型"),
-        current_user: User = Depends(get_current_user)
 ):
     search_params = {
         "log_type": log_type,

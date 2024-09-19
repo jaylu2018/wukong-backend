@@ -47,7 +47,7 @@ async def test_update_api(async_client: AsyncClient, auth_headers):
 @pytest.mark.asyncio
 async def test_batch_delete_apis(async_client: AsyncClient, auth_headers):
     ids = "1,2,3"
-    response = await async_client.delete(f"/api/v1/system/apis?ids={ids}", headers=auth_headers)
+    response = await async_client.delete(f"/api/v1/system/apis/?ids={ids}", headers=auth_headers)
     assert response.status_code == 200
     # json_data = response.json()
     # assert "deleted_ids" in json_data["data"]

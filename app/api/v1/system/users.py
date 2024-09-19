@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from typing import List, Optional
 
+from app.api.base import BaseCRUDRouter
 from app.core.dependency import get_current_user
 from app.models import User
 from app.models.base import LogType, LogDetailType
@@ -9,74 +12,90 @@ from app.schemas.users import UserCreate, UserOut, UserUpdate
 from app.services.user import user_service
 from app.core.log import insert_log
 
+# 定义日志详细类型
+log_detail_types = {
+    "list": LogDetailType.UserGetList,
+    "retrieve": LogDetailType.UserGetOne,
+    "create": LogDetailType.UserCreateOne,
+    "update": LogDetailType.UserUpdateOne,
+    "delete": LogDetailType.UserDeleteOne,
+    "batch_delete": LogDetailType.UserBatchDelete,
+}
+
+
+class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
+    def _add_routes(self):
+        # 重用父类的方法（获取列表、获取单个、创建、更新、删除、批量删除）
+        super()._add_routes()
+
+        # 重写列表查询，添加自定义过滤逻辑和返回角色信息
+        @self.router.get("", summary="查看用户列表", response_model=SuccessExtra[List[UserOut]])
+        async def list_items(
+                request: Request,
+                page: int = Query(1, description="页码"),
+                page_size: int = Query(10, description="每页数量"),
+                user_name: Optional[str] = Query(None, description="用户名"),
+                user_gender: Optional[str] = Query(None, description="用户性别"),
+                nick_name: Optional[str] = Query(None, description="用户昵称"),
+                user_phone: Optional[str] = Query(None, description="用户手机"),
+                user_email: Optional[str] = Query(None, description="用户邮箱"),
+                status: Optional[str] = Query(None, description="用户状态"),
+                current_user: User = Depends(self.get_current_user),
+        ):
+            start_time = time.time()
+            try:
+                search_params = {
+                    "user_name__contains": user_name,
+                    "user_gender": user_gender,
+                    "nick_name__contains": nick_name,
+                    "user_phone__contains": user_phone,
+                    "user_email__contains": user_email,
+                    "status": status,
+                }
+                filters = {k: v for k, v in search_params.items() if v is not None}
+                total, user_objs = await self.service.list(page=page, page_size=page_size, **filters)
+                records = [await self.service.to_dict_with_roles(user) for user in user_objs]
+                return SuccessExtra(data=records, total=total, current=page, size=page_size)
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")
+
+        # 重写获取单个用户，返回包含角色信息的数据
+        @self.router.get(f"/{{{self.pk}}}", summary="查看用户", response_model=Success[UserOut])
+        async def get_item(
+                pk: int,
+                current_user: User = Depends(self.get_current_user),
+        ):
+            start_time = time.time()
+            try:
+                user_obj = await self.service.get(id=pk)
+                if not user_obj:
+                    raise HTTPException(status_code=404, detail="User not found")
+                user_data = await self.service.to_dict_with_roles(user_obj)
+                return Success(data=user_data)
+            finally:
+                duration = time.time() - start_time
+                await insert_log(
+                    log_type=self.log_type,
+                    log_detail_type=self.log_detail_types["retrieve"],
+                    detail=f"请求耗时 {duration:.2f} 秒"
+                )
+
+
+# 创建路由器实例
 router = APIRouter()
+user_router = UserCRUDRouter(
+    model=User,
+    create_schema=UserCreate,
+    update_schema=UserUpdate,
+    service=user_service,
+    log_detail_types=log_detail_types,
+    get_current_user=get_current_user,
+    prefix="/users",
+    tags=["用户管理"],
+    log_type=LogType.AdminLog,
+    pk="pk",
+    unique_fields=["user_name", "user_email", "user_phone"],
+)
 
-
-@router.get("/users", summary="查看用户列表", response_model=SuccessExtra[List[UserOut]])
-async def get_users(
-        current: int = Query(1, description="页码"),
-        size: int = Query(10, description="每页数量"),
-        user_name: Optional[str] = Query(None, description="用户名"),
-        user_gender: Optional[str] = Query(None, description="用户性别"),
-        nick_name: Optional[str] = Query(None, description="用户昵称"),
-        user_phone: Optional[str] = Query(None, description="用户手机"),
-        user_email: Optional[str] = Query(None, description="用户邮箱"),
-        status: Optional[str] = Query(None, description="用户状态"),
-        current_user: User = Depends(get_current_user),
-):
-    search_params = {
-        "user_name__contains": user_name,
-        "user_gender": user_gender,
-        "nick_name__contains": nick_name,
-        "user_phone__contains": user_phone,
-        "user_email__contains": user_email,
-        "status": status,
-    }
-    filters = {k: v for k, v in search_params.items() if v is not None}
-    total, user_objs = await user_service.list(page=current, page_size=size, **filters)
-    records = [await user_service.to_dict_with_roles(user) for user in user_objs]
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserGetList)
-    return SuccessExtra(data=records, total=total, current=current, size=size)
-
-
-@router.get("/users/{user_id}", summary="查看用户", response_model=Success[UserOut])
-async def get_user(user_id: int, current_user: User = Depends(get_current_user)):
-    user_obj = await user_service.get(user_id)
-    if not user_obj:
-        raise HTTPException(status_code=404, detail="User not found")
-    user_data = await user_service.to_dict_with_roles(user_obj)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserGetOne)
-    return Success(data=user_data)
-
-
-@router.post("/users", summary="创建用户", response_model=Success[dict])
-async def create_user(user_in: UserCreate, current_user: User = Depends(get_current_user)):
-    new_user = await user_service.create(user_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserCreateOne)
-    return Success(msg="Created Successfully", data={"created_id": new_user.id})
-
-
-@router.patch("/users/{user_id}", summary="更新用户", response_model=Success[dict])
-async def update_user(user_id: int, user_in: UserUpdate, current_user: User = Depends(get_current_user)):
-    user = await user_service.update_user(user_id, user_in)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserUpdateOne)
-    return Success(msg="Updated Successfully", data={"updated_id": user_id})
-
-
-@router.delete("/users/{user_id}", summary="删除用户", response_model=Success[dict])
-async def delete_user(user_id: int, current_user: User = Depends(get_current_user)):
-    deleted = await user_service.delete(user_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="User not found")
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserDeleteOne)
-    return Success(msg="Deleted Successfully", data={"deleted_id": user_id})
-
-
-@router.delete("/users", summary="批量删除用户", response_model=Success[dict])
-async def batch_delete_users(ids: str = Query(..., description="用户ID列表, 用逗号隔开"), current_user: User = Depends(get_current_user)):
-    user_ids = [int(user_id.strip()) for user_id in ids.split(",") if user_id.strip().isdigit()]
-    deleted_ids = await user_service.batch_delete(user_ids)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.UserBatchDeleteOne)
-    return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
+router.include_router(user_router.router)

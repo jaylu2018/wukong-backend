@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from typing import List
 
+from app.api.base import BaseCRUDRouter
 from app.core.context_vars import user_id_var
 from app.core.dependency import DependAuth, get_current_user
 from app.models import Menu, User, Role
@@ -10,7 +11,18 @@ from app.schemas.base import Success
 from app.schemas.route import RouteCreate, RouteUpdate
 from app.core.log import insert_log
 
-router = APIRouter()
+# 定义日志详细类型
+log_detail_types = {
+    "list": LogDetailType.RouteGetList,
+    "retrieve": LogDetailType.RouteGetOne,
+    "create": LogDetailType.RouteCreateOne,
+    "update": LogDetailType.RouteUpdateOne,
+    "delete": LogDetailType.RouteDeleteOne,
+    "batch_delete": LogDetailType.RouteBatchDelete,
+    "exists": LogDetailType.RouteExists,
+    "user_routes": LogDetailType.RouteGetUserRoutes,
+    "constant_routes": LogDetailType.RouteGetConstantRoutes,
+}
 
 
 async def build_route_tree(menus: List[Menu], parent_id: int = 0, simple: bool = False) -> List[dict]:
@@ -58,114 +70,94 @@ async def build_route_tree(menus: List[Menu], parent_id: int = 0, simple: bool =
     return tree
 
 
-@router.get("/constant-routes", summary="查看常量路由(公共路由)")
-async def get_constant_routes():
-    """
-    查看常量路由
-    :return:
-    """
-    data = []
-    menu_objs = await Menu.filter(constant=True, hide_in_menu=True)
-    for menu_obj in menu_objs:
-        route_data = {
-            "name": menu_obj.route_name,
-            "path": menu_obj.route_path,
-            "component": menu_obj.component,
-            "meta": {
-                "title": menu_obj.menu_name,
-                "i18nKey": menu_obj.i18n_key,
-                "constant": menu_obj.constant,
-                "hideInMenu": menu_obj.hide_in_menu
-            }
-        }
+class RouteCRUDRouter(BaseCRUDRouter[Menu, RouteCreate, RouteUpdate, User]):
+    def _add_routes(self):
+        # 重用父类的方法
+        super()._add_routes()
 
-        if menu_obj.props:
-            route_data["props"] = True
+        # 自定义的路由是否存在接口
+        @self.router.get("/{route_name}/exists", summary="路由是否存在", dependencies=[DependAuth])
+        async def route_exists(route_name: str):
+            is_exists = await Menu.exists(route_name=route_name)
+            await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["exists"])
+            return Success(data=is_exists)
 
-        data.append(route_data)
+        # 获取用户路由菜单
+        @self.router.get("/user-routes", summary="查看用户路由菜单", dependencies=[DependAuth])
+        async def get_user_routes():
+            user_id = user_id_var.get()
+            user_obj = await User.get(id=user_id)
+            user_roles: List[Role] = await user_obj.roles.all()
 
-    return Success(data=data)
+            is_super = False
+            role_home = "home"
+            for user_role in user_roles:
+                if user_role.role_code == "R_SUPER":
+                    is_super = True
+                if user_role.role_home:
+                    role_home = user_role.role_home
 
-
-@router.get("/user-routes", summary="查看用户路由菜单", dependencies=[DependAuth])
-async def get_user_routes():
-    """
-    查看用户路由菜单, 超级管理员返回所有菜单
-    :return:
-    """
-    user_id = user_id_var.get() 
-    user_obj = await User.get(id=user_id)
-    user_roles: list[Role] = await user_obj.roles
-
-    is_super = False
-    role_home = "home"
-    for user_role in user_roles:
-        if user_role.role_code == "R_SUPER":
-            is_super = True
-        if user_role.role_home:
-            role_home = user_role.role_home
-
-    if is_super:
-        role_routes: list[Menu] = await Menu.filter(constant=False)  # todo 处理隐藏菜单是否需要返回
-    else:
-        role_routes: list[Menu] = []
-        for user_role in user_roles:
-            user_role_routes: list[Menu] = await user_role.menus  # type: ignore
-            for user_role_route in user_role_routes:
-                if not user_role_route.constant or user_role_route.hide_in_menu:
-                    role_routes.append(user_role_route)
-
-        menu_objs = role_routes.copy()
-        while len(menu_objs) > 0:
-            menu = menu_objs.pop()
-            if menu.parent_id != 0:
-                menu = await Menu.get(id=menu.parent_id)
-                menu_objs.append(menu)
+            if is_super:
+                role_routes = await Menu.filter(constant=False)
             else:
-                role_routes.append(menu)
+                role_routes = []
+                for user_role in user_roles:
+                    user_role_routes = await user_role.menus.all()
+                    role_routes.extend(user_role_routes)
 
-    role_routes = list(set(role_routes))  # 去重
-    # 递归生成菜单
-    menu_tree = await build_route_tree(role_routes, simple=True)
-    data = {"home": role_home, "routes": menu_tree}
-    return Success(data=data)
+                # 获取所有父菜单
+                menu_objs = role_routes.copy()
+                while menu_objs:
+                    menu = menu_objs.pop()
+                    if menu.parent_id != 0:
+                        parent_menu = await Menu.get(id=menu.parent_id)
+                        if parent_menu not in role_routes:
+                            role_routes.append(parent_menu)
+                            menu_objs.append(parent_menu)
+
+            role_routes = list(set(role_routes))
+            menu_tree = await build_route_tree(role_routes, simple=True)
+            data = {"home": role_home, "routes": menu_tree}
+            await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["user_routes"])
+            return Success(data=data)
+
+        # 查看常量路由
+        @self.router.get("/constant-routes", summary="查看常量路由(公共路由)")
+        async def get_constant_routes():
+            data = []
+            menu_objs = await Menu.filter(constant=True, hide_in_menu=True)
+            for menu_obj in menu_objs:
+                route_data = {
+                    "name": menu_obj.route_name,
+                    "path": menu_obj.route_path,
+                    "component": menu_obj.component,
+                    "meta": {
+                        "title": menu_obj.menu_name,
+                        "i18nKey": menu_obj.i18n_key,
+                        "constant": menu_obj.constant,
+                        "hideInMenu": menu_obj.hide_in_menu
+                    }
+                }
+                if menu_obj.props:
+                    route_data["props"] = True
+                data.append(route_data)
+            await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["constant_routes"])
+            return Success(data=data)
 
 
-@router.get("/{route_name}/exists", summary="路由是否存在", dependencies=[DependAuth])
-async def route_exists(route_name: str):
-    is_exists = await Menu.exists(route_name=route_name)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteExists)
-    return Success(data=is_exists)
+# 创建路由器实例
+router = APIRouter()
+route_router = RouteCRUDRouter(
+    model=Menu,
+    create_schema=RouteCreate,
+    update_schema=RouteUpdate,
+    service=route_service,
+    log_detail_types=log_detail_types,
+    get_current_user=get_current_user,
+    prefix="/routes",
+    tags=["路由管理"],
+    log_type=LogType.AdminLog,
+    pk="pk",
+)
 
-
-@router.get("/routes", summary="获取路由列表")
-async def get_routes(current_user: User = Depends(get_current_user)):
-    routes = await route_service.get_routes()
-    route_tree = await build_route_tree(routes, simple=True)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteGetList)
-    return Success(data=route_tree)
-
-
-@router.post("/routes", summary="创建路由")
-async def create_route(route_in: RouteCreate, current_user: User = Depends(get_current_user)):
-    new_route = await route_service.create(route_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteCreateOne)
-    return Success(msg="Created Successfully", data={"created_id": new_route.id})
-
-
-@router.patch("/routes/{route_id}", summary="更新路由")
-async def update_route(route_id: int, route_in: RouteUpdate, current_user: User = Depends(get_current_user)):
-    updated_route = await route_service.update(route_id, route_in)
-    if updated_route:
-        await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteUpdateOne)
-        return Success(msg="Updated Successfully", data={"updated_id": route_id})
-    return Success(msg="Route not found", data=None)
-
-
-@router.delete("/routes/{route_id}", summary="删除路由")
-async def delete_route(route_id: int, current_user: User = Depends(get_current_user)):
-    deleted = await route_service.delete(route_id)
-    if deleted:
-        await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.RouteDeleteOne)
-        return Success(msg="Deleted Successfully", data={"deleted_id": route_id})
-    return Success(msg="Route not found", data=None)
+router.include_router(route_router.router)

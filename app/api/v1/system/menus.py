@@ -1,15 +1,29 @@
-from fastapi import APIRouter, Query, Depends, HTTPException
+import time
+
+from fastapi import APIRouter, Depends
 from typing import List
 
+from app.api.base import BaseCRUDRouter
 from app.core.log import insert_log
 from app.models import Menu, User
 from app.models.base import LogType, LogDetailType
 from app.services.menu import menu_service
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Success
 from app.schemas.menus import MenuCreate, MenuUpdate
 from app.core.dependency import get_current_user
 
-router = APIRouter()
+# 定义日志详细类型
+log_detail_types = {
+    "list": LogDetailType.MenuGetList,
+    "retrieve": LogDetailType.MenuGetOne,
+    "create": LogDetailType.MenuCreateOne,
+    "update": LogDetailType.MenuUpdateOne,
+    "delete": LogDetailType.MenuDeleteOne,
+    "batch_delete": LogDetailType.MenuBatchDeleteOne,
+    "get_tree": LogDetailType.MenuGetTree,
+    "get_pages": LogDetailType.MenuGetPages,
+    "get_buttons_tree": LogDetailType.MenuGetButtonsTree,
+}
 
 
 async def build_menu_tree(menus: List[Menu], parent_id: int = 0, simple: bool = False) -> List[dict]:
@@ -35,72 +49,6 @@ async def build_menu_tree(menus: List[Menu], parent_id: int = 0, simple: bool = 
     return tree
 
 
-@router.get("/menus", summary="查看用户菜单")
-async def get_menus(
-        current: int = Query(1, description="页码"),
-        size: int = Query(100, description="每页数量"),
-        current_user: User = Depends(get_current_user)
-):
-    total, menus = await menu_service.list(page=current, page_size=size, order=["id"])
-    menu_tree = await build_menu_tree(menus, simple=False)
-    data = {"records": menu_tree}
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetList)
-    return SuccessExtra(data=data, total=total, current=current, size=size)
-
-
-@router.get("/menus/tree/", summary="查看菜单树")
-async def get_menu_tree(current_user: User = Depends(get_current_user)):
-    menus = await menu_service.get_non_constant_menus()
-    menu_tree = await build_menu_tree(menus, simple=True)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetTree)
-    return Success(data=menu_tree)
-
-
-@router.get("/menus/{menu_id}", summary="查看菜单")
-async def get_menu(menu_id: int, current_user: User = Depends(get_current_user)):
-    menu = await menu_service.get(id=menu_id)
-    if not menu:
-        raise HTTPException(status_code=404, detail="Menu not found")
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetOne)
-    return Success(data=await menu_service.to_dict(menu))
-
-
-@router.post("/menus", summary="创建菜单")
-async def create_menu(menu_in: MenuCreate, current_user: User = Depends(get_current_user)):
-    new_menu = await menu_service.create(menu_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuCreateOne)
-    return Success(msg="Created Successfully", data={"created_id": new_menu.id})
-
-
-@router.patch("/menus/{menu_id}", summary="更新菜单")
-async def update_menu(menu_id: int, menu_in: MenuUpdate, current_user: User = Depends(get_current_user)):
-    updated_menu = await menu_service.update(menu_id, menu_in)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuUpdateOne)
-    return Success(msg="Updated Successfully", data={"updated_id": menu_id})
-
-
-@router.delete("/menus/{menu_id}", summary="删除菜单")
-async def delete_menu(menu_id: int, current_user: User = Depends(get_current_user)):
-    await menu_service.remove(menu_id)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuDeleteOne)
-    return Success(msg="Deleted Successfully", data={"deleted_id": menu_id})
-
-
-@router.delete("/menus", summary="批量删除菜单")
-async def batch_delete_menus(ids: str = Query(description="菜单ID列表, 用逗号隔开"), current_user: User = Depends(get_current_user)):
-    menu_ids = [int(id) for id in ids.split(",")]
-    await menu_service.batch_remove(menu_ids)
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuBatchDeleteOne)
-    return Success(msg="Deleted Successfully", data={"deleted_ids": menu_ids})
-
-
-@router.get("/menus/pages/", summary="查看一级菜单")
-async def get_first_level_menus(current_user: User = Depends(get_current_user)):
-    menus = await menu_service.get_first_level_menus()
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetPages)
-    return Success(data=[menu.route_name for menu in menus])
-
-
 async def build_menu_button_tree(menus: List[Menu], parent_id: int = 0) -> List[dict]:
     """
     递归生成菜单按钮树
@@ -121,22 +69,61 @@ async def build_menu_button_tree(menus: List[Menu], parent_id: int = 0) -> List[
     return tree
 
 
-@router.get("/menus/buttons/tree/", summary="查看菜单按钮树")
-async def get_menu_button_tree(current_user: User = Depends(get_current_user)):
-    menus_with_button = await menu_service.get_menus_with_buttons()
-    menu_objs = menus_with_button.copy()
-    while len(menus_with_button) > 0:
-        menu = menus_with_button.pop()
-        if menu.parent_id != 0:
-            menu = await menu_service.get(id=menu.parent_id)
-            menus_with_button.append(menu)
-        else:
-            menu_objs.append(menu)
+class MenuCRUDRouter(BaseCRUDRouter[Menu, MenuCreate, MenuUpdate, User]):
+    def _add_routes(self):
+        # 重用父类的方法（获取列表、获取单个、创建、更新、删除、批量删除）
+        super()._add_routes()
 
-    menu_objs = list(set(menu_objs))
-    data = []
-    if menu_objs:
-        data = await build_menu_button_tree(menu_objs)
+        # 获取菜单树形结构
+        @self.router.get("/tree/", summary="获取菜单树形结构", response_model=Success[List[dict]])
+        async def get_menu_tree(current_user: User = Depends(self.get_current_user)):
+            start_time = time.time()
+            try:
+                menus = await self.service.get_non_constant_menus()
+                menu_tree = await build_menu_tree(menus, simple=False)
+                return Success(data=menu_tree)
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_tree"], detail=f"请求耗时 {duration:.2f} 秒")
 
-    await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.MenuGetButtonsTree)
-    return Success(data=data)
+        # 查看一级菜单
+        @self.router.get("/pages/", summary="查看一级菜单", response_model=Success[List[str]])
+        async def get_first_level_menus(current_user: User = Depends(self.get_current_user)):
+            start_time = time.time()
+            try:
+                menus = await self.service.get_first_level_menus()
+                menu_names = [menu.route_name for menu in menus]
+                return Success(data=menu_names)
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_pages"], detail=f"请求耗时 {duration:.2f} 秒")
+
+        # 获取菜单按钮树
+        @self.router.get("/buttons/tree/", summary="查看菜单按钮树", response_model=Success[List[dict]])
+        async def get_menu_button_tree(current_user: User = Depends(self.get_current_user)):
+            start_time = time.time()
+            try:
+                menus_with_buttons = await self.service.get_menus_with_buttons()
+                menu_tree = await build_menu_button_tree(menus_with_buttons)
+                return Success(data=menu_tree)
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_buttons_tree"], detail=f"请求耗时 {duration:.2f} 秒")
+
+
+# 创建路由器实例
+router = APIRouter()
+menu_router = MenuCRUDRouter(
+    model=Menu,
+    create_schema=MenuCreate,
+    update_schema=MenuUpdate,
+    service=menu_service,
+    log_detail_types=log_detail_types,
+    get_current_user=get_current_user,
+    prefix="/menus",
+    tags=["菜单管理"],
+    log_type=LogType.AdminLog,
+    pk='pk'
+)
+
+router.include_router(menu_router.router)
