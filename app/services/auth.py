@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 
 from app.core.log import logger
 from app.models import User, Log
-from app.core.config import APP_SETTINGS
+from app.core.settings import APP_SETTINGS
 from app.models.base import LogType, StatusType, LogDetailType
 from app.schemas.auth import TokenPayload, CredentialsSchema
 from app.schemas.users import UserCreate, UserUpdate

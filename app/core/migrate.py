@@ -1,6 +1,6 @@
 from aerich import Command
 
-from app.core.config import APP_SETTINGS
+from app.core.settings import APP_SETTINGS
 
 
 async def migrate_db():

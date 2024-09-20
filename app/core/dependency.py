@@ -1,25 +1,24 @@
 from typing import Any
 
 import jwt
-from fastapi import Depends, Request
+from fastapi import Depends, Request, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.config import APP_SETTINGS
+from app.core.settings import APP_SETTINGS
 from app.core.context_vars import user_id_var
-from app.core.exceptions import HTTPException
 from app.models import User, Role
 from app.models.base import StatusType
 from app.services.auth import auth_service
 from app.utils.tools import check_url
 
-oauth2_schema = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_schema = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
 async def get_current_user(token: str = Depends(oauth2_schema)) -> User:
     token_data = auth_service.decode_token(token)
     user = await User.get_or_none(id=token_data.userId)
     if user is None:
-        raise HTTPException(code=401, msg="User not found")
+        raise HTTPException(status_code=401, detail="User not found")
     user_id_var.set(user.id)
     return user
 
@@ -44,16 +43,16 @@ class AuthService:
         if not user_id:
             status, code, decode_data = check_token(token)
             if not status:
-                raise HTTPException(code=code, msg=decode_data)
+                raise HTTPException(status_code=code, detail=decode_data)
 
             if "tokenType" not in decode_data or decode_data["tokenType"] != "accessToken":
-                raise HTTPException(code="4010", msg="The token is not an access token")
+                raise HTTPException(status_code=4010, detail="The token is not an access token")
 
             user_id = decode_data["userId"]
 
         user = await User.filter(id=user_id).first()
         if not user:
-            raise HTTPException(code="4040", msg=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
+            raise HTTPException(status_code=4040, detail=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
         user_id_var.set(user_id)
         return user
 
@@ -68,7 +67,7 @@ class PermissionService:
             return
 
         if not user_roles:
-            raise HTTPException(code="4040", msg="The user is not bound to a role")
+            raise HTTPException(status_code=4040, detail="The user is not bound to a role")
 
         method = request.method.lower()
         path = request.url.path
@@ -78,10 +77,10 @@ class PermissionService:
         for (api_method, api_path, api_status) in permission_apis:
             if api_method == method and check_url(api_path, request.url.path):  # API权限检测通过
                 if api_status == StatusType.disable:
-                    raise HTTPException(code="4030", msg=f"The API has been disabled, method: {method} path: {path}")
+                    raise HTTPException(status_code=4030, detail=f"The API has been disabled, method: {method} path: {path}")
                 return
 
-        raise HTTPException(code="4030", msg=f"Permission denied, method: {method} path: {path}")
+        raise HTTPException(status_code=4030, detail=f"Permission denied, method: {method} path: {path}")
 
 
 DependAuth = Depends(AuthService.is_authed)

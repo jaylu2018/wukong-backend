@@ -1,16 +1,15 @@
 import time
 
 from fastapi import FastAPI
-from fastapi.openapi.utils import get_openapi
-from starlette.middleware import Middleware
 from contextlib import asynccontextmanager
 
 from app.api import api_router
+from app.core.exceptions import value_error_handler, global_exception_handler
 from app.core.log import insert_log, logger
 from app.utils.public import refresh_api_list
-from app.core.config import APP_SETTINGS
+from app.core.settings import APP_SETTINGS
 from app.core.migrate import migrate_db
-from app.core.middleware import make_middlewares, TraceIDMiddleware
+from app.core.middleware import register_middlewares
 from app.models.base import LogType, LogDetailType
 
 
@@ -35,41 +34,18 @@ app = FastAPI(
     description=APP_SETTINGS.APP_DESCRIPTION,
     version=APP_SETTINGS.VERSION,
     openapi_url="/openapi.json",
-    middleware=make_middlewares() + [Middleware(TraceIDMiddleware)],
+    middleware=register_middlewares(),
     lifespan=lifespan
 )
 
 # 注册路由
 app.include_router(api_router, prefix='/api')
 
-
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-    )
-    openapi_schema["components"]["securitySchemes"] = {
-        "OAuth2PasswordBearer": {
-            "type": "oauth2",
-            "flows": {
-                "password": {
-                    "tokenUrl": "/api/v1/auth/token"
-                }
-            }
-        }
-    }
-    openapi_schema["security"] = [{"OAuth2PasswordBearer": []}]
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
-
-
-app.openapi = custom_openapi
-
+# 先注册具体的异常处理器
+app.add_exception_handler(ValueError, value_error_handler)
+# 然后注册全局的异常处理器
+app.add_exception_handler(Exception, global_exception_handler)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=9997, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=9997, reload=True, access_log=False)

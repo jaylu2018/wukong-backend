@@ -1,13 +1,7 @@
 import os
 
 from app.utils.public import refresh_api_list
-from app.core.config import TORTOISE_ORM
-from app.core.exceptions import SettingNotFound
-
-try:
-    from app.core.config import APP_SETTINGS
-except ImportError:
-    raise SettingNotFound("Can not import settings")
+from app.core.settings import TORTOISE_ORM
 
 from tortoise import Tortoise, run_async
 from loguru import logger
