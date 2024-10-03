@@ -29,11 +29,11 @@ def check_token(token: str) -> tuple[bool, int, Any]:
         decode_data = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM], options=options)
         return True, 0, decode_data
     except jwt.DecodeError:
-        return False, 4010, "无效的Token"
+        return False, 401, "无效的Token"
     except jwt.ExpiredSignatureError:
-        return False, 4010, "登录已过期"
+        return False, 401, "登录已过期"
     except Exception as e:
-        return False, 5000, f"{repr(e)}"
+        return False, 500, f"{repr(e)}"
 
 
 class AuthService:

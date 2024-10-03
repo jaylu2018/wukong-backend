@@ -2,7 +2,7 @@ import time
 import uuid
 
 from typing import Callable, Awaitable
-from starlette.types import ASGIApp, Scope, Receive, Send
+from starlette.types import ASGIApp
 from starlette.responses import Response
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
