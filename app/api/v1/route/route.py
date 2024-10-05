@@ -7,7 +7,7 @@ from app.core.dependency import DependAuth, get_current_user
 from app.models import Menu, User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.route import route_service
-from app.schemas.base import Success
+from app.schemas.base import Response
 from app.schemas.route import RouteCreate, RouteUpdate
 from app.core.log import insert_log
 
@@ -80,7 +80,7 @@ class RouteCRUDRouter(BaseCRUDRouter[Menu, RouteCreate, RouteUpdate, User]):
         async def route_exists(route_name: str):
             is_exists = await Menu.exists(route_name=route_name)
             await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["exists"])
-            return Success(data=is_exists)
+            return Response(data=is_exists)
 
         # 获取用户路由菜单
         @self.router.get("/user-routes", summary="查看用户路由菜单", dependencies=[DependAuth])
@@ -119,7 +119,7 @@ class RouteCRUDRouter(BaseCRUDRouter[Menu, RouteCreate, RouteUpdate, User]):
             menu_tree = await build_route_tree(role_routes, simple=True)
             data = {"home": role_home, "routes": menu_tree}
             await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["user_routes"])
-            return Success(data=data)
+            return Response(data=data)
 
         # 查看常量路由
         @self.router.get("/constant-routes", summary="查看常量路由(公共路由)")
@@ -142,7 +142,7 @@ class RouteCRUDRouter(BaseCRUDRouter[Menu, RouteCreate, RouteUpdate, User]):
                     route_data["props"] = True
                 data.append(route_data)
             await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["constant_routes"])
-            return Success(data=data)
+            return Response(data=data)
 
 
 # 创建路由器实例

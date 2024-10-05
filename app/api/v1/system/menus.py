@@ -8,7 +8,7 @@ from app.core.log import insert_log
 from app.models import Menu, User
 from app.models.base import LogType, LogDetailType
 from app.services.menu import menu_service
-from app.schemas.base import Success
+from app.schemas.base import Response
 from app.schemas.menus import MenuCreate, MenuUpdate
 from app.core.dependency import get_current_user
 
@@ -75,37 +75,37 @@ class MenuCRUDRouter(BaseCRUDRouter[Menu, MenuCreate, MenuUpdate, User]):
         super()._add_routes()
 
         # 获取菜单树形结构
-        @self.router.get("/tree/", summary="获取菜单树形结构", response_model=Success[List[dict]])
+        @self.router.get("/tree/", summary="获取菜单树形结构", response_model=Response[List[dict]])
         async def get_menu_tree(current_user: User = Depends(self.get_current_user)):
             start_time = time.time()
             try:
                 menus = await self.service.get_non_constant_menus()
                 menu_tree = await build_menu_tree(menus, simple=False)
-                return Success(data=menu_tree)
+                return Response(data=menu_tree)
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_tree"], detail=f"请求耗时 {duration:.2f} 秒")
 
         # 查看一级菜单
-        @self.router.get("/pages/", summary="查看一级菜单", response_model=Success[List[str]])
+        @self.router.get("/pages/", summary="查看一级菜单", response_model=Response[List[str]])
         async def get_first_level_menus(current_user: User = Depends(self.get_current_user)):
             start_time = time.time()
             try:
                 menus = await self.service.get_first_level_menus()
                 menu_names = [menu.route_name for menu in menus]
-                return Success(data=menu_names)
+                return Response(data=menu_names)
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_pages"], detail=f"请求耗时 {duration:.2f} 秒")
 
         # 获取菜单按钮树
-        @self.router.get("/buttons/tree/", summary="查看菜单按钮树", response_model=Success[List[dict]])
+        @self.router.get("/buttons/tree/", summary="查看菜单按钮树", response_model=Response[List[dict]])
         async def get_menu_button_tree(current_user: User = Depends(self.get_current_user)):
             start_time = time.time()
             try:
                 menus_with_buttons = await self.service.get_menus_with_buttons()
                 menu_tree = await build_menu_button_tree(menus_with_buttons)
-                return Success(data=menu_tree)
+                return Response(data=menu_tree)
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_buttons_tree"], detail=f"请求耗时 {duration:.2f} 秒")

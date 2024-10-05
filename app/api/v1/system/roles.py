@@ -1,13 +1,13 @@
 import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.api.base import BaseCRUDRouter
 from app.core.dependency import get_current_user
 from app.models import User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.role import role_service
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Response
 from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthorization
 from app.core.log import insert_log
 
@@ -39,7 +39,7 @@ class RoleCRUDRouter(BaseCRUDRouter[Role, RoleCreate, RoleUpdate, User]):
             try:
                 role_home, menu_ids = await self.service.get_role_menus(pk)
                 data = {"roleHome": role_home, "menuIds": menu_ids}
-                return Success(data=data)
+                return Response(data=data)
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["get_menus"], detail=f"请求耗时 {duration:.2f} 秒")
@@ -54,7 +54,7 @@ class RoleCRUDRouter(BaseCRUDRouter[Role, RoleCreate, RoleUpdate, User]):
             start_time = time.time()
             try:
                 updated_role = await self.service.update_menus(pk, role_in)
-                return Success(
+                return Response(
                     msg="更新成功",
                     data={
                         "updated_menu_ids": role_in.menu_ids,

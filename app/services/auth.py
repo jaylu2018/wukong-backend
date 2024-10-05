@@ -1,11 +1,11 @@
 from typing import Optional
 from fastapi import HTTPException
 from jose import jwt, JWTError
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from passlib.context import CryptContext
 
-from app.core.log import logger
-from app.models import User, Log
+from app.core.log import logger, insert_log
+from app.models import User
 from app.core.settings import APP_SETTINGS
 from app.models.base import LogType, StatusType, LogDetailType
 from app.schemas.auth import TokenPayload, CredentialsSchema
@@ -33,19 +33,19 @@ class AuthService(CRUDBase[User, UserCreate, UserUpdate]):
     async def authenticate_user(self, credentials: CredentialsSchema):
         user = await User.get_or_none(user_name=credentials.user_name)
         if not user:
-            await Log.create(log_type=LogType.UserLog, by_user_id=0, log_detail_type=LogDetailType.UserLoginUserNameVaild)
-            raise HTTPException(status_code=4040, detail="用户未找到！")
+            await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginUserNameVaild)
+            raise HTTPException(status_code=404, detail="用户未找到！")
 
         logger.debug(f"Input password: {credentials.password}")
         logger.debug(f"Stored hashed password: {user.password}")
 
         if not self.verify_password(credentials.password, user.password):
-            await Log.create(log_type=LogType.UserLog, by_user_id=user.id, log_detail_type=LogDetailType.UserLoginErrorPassword)
-            raise HTTPException(status_code=4041, detail="用户名或密码不正确！")
+            await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginErrorPassword)
+            raise HTTPException(status_code=404, detail="用户名或密码不正确！")
 
         if user.status == StatusType.disable:
-            await Log.create(log_type=LogType.UserLog, by_user_id=user.id, log_detail_type=LogDetailType.UserLoginForbid)
-            raise HTTPException(status_code=4042, detail="用户已被禁用！")
+            await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginForbid)
+            raise HTTPException(status_code=404, detail="用户已被禁用！")
         return user
 
     @staticmethod
@@ -65,7 +65,7 @@ class AuthService(CRUDBase[User, UserCreate, UserUpdate]):
             payload = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM])
             token_data = TokenPayload(**payload)
         except JWTError:
-            raise HTTPException(status_code=4010, detail="Could not validate credentials")
+            raise HTTPException(status_code=401, detail="无效的Token")
         return token_data
 
 

@@ -5,7 +5,7 @@ import time
 
 from app.core.dependency import get_current_user, PermissionService
 from app.models.base import LogType, LogDetailType
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Response, ResponseList
 from app.core.log import insert_log
 
 ModelType = TypeVar("ModelType")
@@ -128,14 +128,14 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
         filters = {key: value for key, value in query_params.items()}
         total, items = await self.service.list(page=page, page_size=page_size, **filters)
         data = [await self.service.to_dict(item) for item in items]
-        return SuccessExtra(data=data, total=total, current=page, size=page_size)
+        return ResponseList(data=data, total=total, current=page, size=page_size)
 
     async def _get_item(self, pk):
         item = await self.service.get(id=pk)
         if not item:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} 未找到")
         data = await self.service.to_dict(item)
-        return Success(data=data)
+        return Response(data=data)
 
     async def _create_item(self, item_in):
         if self.unique_fields:
@@ -145,23 +145,23 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                 conflict_fields = ", ".join(self.unique_fields)
                 raise HTTPException(status_code=409, detail=f"{self.model.__name__}已存在，冲突字段：{conflict_fields}")
         item = await self.service.create(obj_in=item_in)
-        return Success(data={"id": item.id})
+        return Response(data={"id": item.id})
 
     async def _update_item(self, pk, item_in):
         item = await self.service.update(id=pk, obj_in=item_in)
         if not item:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} 未找到")
-        return Success(data={"id": pk})
+        return Response(data={"id": pk})
 
     async def _delete_item(self, pk):
         success = await self.service.remove(id=pk)
         if not success:
             raise HTTPException(status_code=404, detail=f"{self.model.__name__} 未找到")
-        return Success(data={"id": pk})
+        return Response(data={"id": pk})
 
     async def _batch_delete_items(self, ids):
         id_list = [int(id.strip()) for id in ids.split(",") if id.strip().isdigit()]
         deleted_count = await self.service.batch_remove(id_list)
         if deleted_count == 0:
             raise HTTPException(status_code=404, detail=f"未找到指定的{self.model.__name__}")
-        return Success(data={"deleted_ids": id_list})
+        return Response(data={"deleted_ids": id_list})

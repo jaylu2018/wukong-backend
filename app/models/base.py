@@ -64,6 +64,7 @@ class LogDetailType(str, Enum):
     Login = "1003"
     Logout = "1004"
     AboutMe = "1005"
+    GetUserInfo = "1006"
 
     SystemStart = "1101"
     SystemStop = "1102"

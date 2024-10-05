@@ -13,14 +13,14 @@ class BaseSchema(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
 
-class Success(BaseModel, Generic[T]):
-    code: str = Field(default="2000")
+class Response(BaseModel, Generic[T]):
+    code: str = Field(default="0000")
     msg: str = Field(default="Success")
     data: Optional[T] = None
 
 
-class SuccessExtra(BaseModel, Generic[T]):
-    code: str = Field(default="2000")
+class ResponseList(BaseModel, Generic[T]):
+    code: str = Field(default="0000")
     msg: str = Field(default="Success")
     data: Optional[T] = None
     total: Optional[int] = None

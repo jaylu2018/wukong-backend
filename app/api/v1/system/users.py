@@ -7,7 +7,7 @@ from app.api.base import BaseCRUDRouter
 from app.core.dependency import get_current_user
 from app.models import User
 from app.models.base import LogType, LogDetailType
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Response, ResponseList
 from app.schemas.users import UserCreate, UserOut, UserUpdate
 from app.services.user import user_service
 from app.core.log import insert_log
@@ -29,7 +29,7 @@ class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
         super()._add_routes()
 
         # 重写列表查询，添加自定义过滤逻辑和返回角色信息
-        @self.router.get("", summary="查看用户列表", response_model=SuccessExtra[List[UserOut]])
+        @self.router.get("", summary="查看用户列表", response_model=ResponseList[List[UserOut]])
         async def list_items(
                 request: Request,
                 page: int = Query(1, description="页码"),
@@ -55,13 +55,13 @@ class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
                 filters = {k: v for k, v in search_params.items() if v is not None}
                 total, user_objs = await self.service.list(page=page, page_size=page_size, **filters)
                 records = [await self.service.to_dict_with_roles(user) for user in user_objs]
-                return SuccessExtra(data=records, total=total, current=page, size=page_size)
+                return ResponseList(data=records, total=total, current=page, size=page_size)
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")
 
         # 重写获取单个用户，返回包含角色信息的数据
-        @self.router.get(f"/{{{self.pk}}}", summary="查看用户", response_model=Success[UserOut])
+        @self.router.get(f"/{{{self.pk}}}", summary="查看用户", response_model=Response[UserOut])
         async def get_item(
                 pk: int,
                 current_user: User = Depends(self.get_current_user),
@@ -72,7 +72,7 @@ class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
                 if not user_obj:
                     raise HTTPException(status_code=404, detail="User not found")
                 user_data = await self.service.to_dict_with_roles(user_obj)
-                return Success(data=user_data)
+                return Response(data=user_data)
             finally:
                 duration = time.time() - start_time
                 await insert_log(

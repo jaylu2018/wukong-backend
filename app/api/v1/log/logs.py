@@ -4,7 +4,7 @@ from app.core.dependency import get_current_user
 from app.models import User
 from app.models.base import LogType, LogDetailType
 from app.services.log import log_service
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Response, ResponseList
 from app.schemas.logs import LogUpdate
 from app.core.log import insert_log
 
@@ -27,7 +27,7 @@ async def get_logs(
     records = [await log_service.to_dict(log, exclude_fields=["by_user", "api_log"]) for log in log_objs]
     data = {"records": records}
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogGetList)
-    return SuccessExtra(data=data, total=total, current=current, size=size)
+    return ResponseList(data=data, total=total, current=current, size=size)
 
 
 @router.get("/logs/{log_id}", summary="查看日志")
@@ -35,21 +35,21 @@ async def get_log(log_id: int, current_user: User = Depends(get_current_user)):
     log_obj = await log_service.get(id=log_id)
     data = await log_service.to_dict(log_obj, exclude_fields=["by_user", "api_log"])
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogGetOne)
-    return Success(data=data)
+    return Response(data=data)
 
 
 @router.patch("/logs/{log_id}", summary="更新日志")
 async def update_log(log_id: int, log_in: LogUpdate, current_user: User = Depends(get_current_user)):
     await log_service.update(log_id, log_in)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogUpdate)
-    return Success(msg="Update Successfully")
+    return Response(msg="Update Successfully")
 
 
 @router.delete("/logs/{log_id}", summary="删除日志")
 async def delete_log(log_id: int, current_user: User = Depends(get_current_user)):
     await log_service.remove(id=log_id)
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogDelete)
-    return Success(msg="Deleted Successfully", data={"deleted_id": log_id})
+    return Response(msg="Deleted Successfully", data={"deleted_id": log_id})
 
 
 @router.delete("/logs", summary="批量删除日志")
@@ -60,4 +60,4 @@ async def batch_delete_logs(ids: str = Query(..., description="日志ID列表, �
         await log_service.remove(id=int(log_id))
         deleted_ids.append(int(log_id))
     await insert_log(log_type=LogType.AdminLog, log_detail_type=LogDetailType.LogBatchDelete)
-    return Success(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})
+    return Response(msg="Deleted Successfully", data={"deleted_ids": deleted_ids})

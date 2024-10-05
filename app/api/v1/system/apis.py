@@ -4,7 +4,7 @@ from app.core.dependency import get_current_user, PermissionService
 from app.models import Api, User
 from app.models.base import LogDetailType, LogType, StatusType
 from app.schemas.apis import ApiCreate, ApiUpdate, ApiOut
-from app.schemas.base import Success, SuccessExtra
+from app.schemas.base import Response, ResponseList
 from app.services.apis import api_service
 from app.api.base import BaseCRUDRouter
 from app.core.log import insert_log
@@ -29,7 +29,7 @@ class ApiCRUDRouter(BaseCRUDRouter[Api, ApiCreate, ApiUpdate, User]):
         super()._add_routes()
 
         # 重写列表查询，以实现自定义的过滤和权限逻辑
-        @self.router.get("", summary="获取 API 列表", response_model=SuccessExtra[List[ApiOut]])
+        @self.router.get("", summary="获取 API 列表", response_model=ResponseList[List[ApiOut]])
         async def list_items(
                 request: Request,
                 current_user: User = Depends(self.get_current_user),
@@ -67,17 +67,17 @@ class ApiCRUDRouter(BaseCRUDRouter[Api, ApiCreate, ApiUpdate, User]):
                     items = (await Api.filter(id__in=api_ids).filter(**filters).offset((page - 1) * page_size).limit(page_size).order_by("tags", "id"))
 
                 data = [await self.service.to_dict(item) for item in items]
-                return SuccessExtra(data=data, total=total, current=page, size=page_size)
+                return ResponseList(data=data, total=total, current=page, size=page_size)
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")
 
-        @self.router.get("/tree/", summary="获取API树形结构", response_model=Success[List[dict]])
+        @self.router.get("/tree/", summary="获取API树形结构", response_model=Response[List[dict]])
         async def get_api_tree(current_user: User = Depends(self.get_current_user)):
             start_time = time.time()
             try:
                 api_tree = await self.service.get_api_tree()
-                return Success(data=api_tree)
+                return Response(data=api_tree)
             finally:
                 duration = time.time() - start_time
                 await insert_log(

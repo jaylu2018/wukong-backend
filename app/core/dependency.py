@@ -18,15 +18,14 @@ async def get_current_user(token: str = Depends(oauth2_schema)) -> User:
     token_data = auth_service.decode_token(token)
     user = await User.get_or_none(id=token_data.userId)
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="用户不存在")
     user_id_var.set(user.id)
     return user
 
 
 def check_token(token: str) -> tuple[bool, int, Any]:
     try:
-        options = {"verify_signature": True, "verify_aud": False, "exp": True}
-        decode_data = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM], options=options)
+        decode_data = jwt.decode(token, APP_SETTINGS.SECRET_KEY, algorithms=[APP_SETTINGS.JWT_ALGORITHM])
         return True, 0, decode_data
     except jwt.DecodeError:
         return False, 401, "无效的Token"
@@ -46,13 +45,13 @@ class AuthService:
                 raise HTTPException(status_code=code, detail=decode_data)
 
             if "tokenType" not in decode_data or decode_data["tokenType"] != "accessToken":
-                raise HTTPException(status_code=4010, detail="The token is not an access token")
+                raise HTTPException(status_code=401, detail="无效的Token")
 
             user_id = decode_data["userId"]
 
         user = await User.filter(id=user_id).first()
         if not user:
-            raise HTTPException(status_code=4040, detail=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
+            raise HTTPException(status_code=404, detail=f"Authentication failed, the user_id: {user_id} does not exists in the system.")
         user_id_var.set(user_id)
         return user
 
@@ -67,7 +66,7 @@ class PermissionService:
             return
 
         if not user_roles:
-            raise HTTPException(status_code=4040, detail="The user is not bound to a role")
+            raise HTTPException(status_code=404, detail="The user is not bound to a role")
 
         method = request.method.lower()
         path = request.url.path
@@ -77,10 +76,10 @@ class PermissionService:
         for (api_method, api_path, api_status) in permission_apis:
             if api_method == method and check_url(api_path, request.url.path):  # API权限检测通过
                 if api_status == StatusType.disable:
-                    raise HTTPException(status_code=4030, detail=f"The API has been disabled, method: {method} path: {path}")
+                    raise HTTPException(status_code=403, detail=f"The API has been disabled, method: {method} path: {path}")
                 return
 
-        raise HTTPException(status_code=4030, detail=f"Permission denied, method: {method} path: {path}")
+        raise HTTPException(status_code=403, detail=f"Permission denied, method: {method} path: {path}")
 
 
 DependAuth = Depends(AuthService.is_authed)
