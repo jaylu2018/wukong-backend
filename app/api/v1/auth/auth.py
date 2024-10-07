@@ -24,7 +24,7 @@ class AuthCRUDRouter(BaseCRUDRouter):
             # 插入日志
             await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["login"])
             # 返回响应
-            return Response(data={"token": access_token, "token_type": "bearer"})
+            return Response(data={"accessToken": access_token, "token_type": "bearer"})
 
         @self.router.post("/logout", summary="用户登出")
         async def logout():
@@ -45,7 +45,7 @@ class AuthCRUDRouter(BaseCRUDRouter):
             user_dict = current_user.__dict__
 
             # 获取用户角色列表
-            roles = [role.role_code for role in await current_user.roles.all()]
+            roles = [{"code": role.role_code, "id": role.id} for role in await current_user.roles.all()]
 
             # 获取用户按钮权限
             buttons = set()

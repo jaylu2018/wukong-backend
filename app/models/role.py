@@ -1,8 +1,8 @@
 from tortoise import fields
-from .base import BaseModel, StatusType
+from .base import CRUDBaseModel, StatusType
 
 
-class Role(BaseModel):
+class Role(CRUDBaseModel):
     id = fields.IntField(primary_key=True, description="角色ID")
     role_name = fields.CharField(max_length=20, unique=True, description="角色名称")
     role_code = fields.CharField(max_length=20, unique=True, description="角色编码")

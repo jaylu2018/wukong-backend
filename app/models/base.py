@@ -1,14 +1,81 @@
+from datetime import datetime
 from enum import Enum
-
+from typing import Type
+from uuid import UUID
+from pydantic import BaseModel
 from tortoise import models, fields
 
+from app.core.settings import APP_SETTINGS
 
-class BaseModel(models.Model):
+
+class CRUDBaseModel(models.Model):
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
     class Meta:
         abstract = True
+
+    async def to_dict(
+            self,
+            schema: Type[BaseModel],
+            include_fields: list[str] | None = None,
+            exclude_fields: list[str] | None = None,
+            m2m: bool = False
+    ) -> dict:
+        include_fields = set(include_fields) if include_fields else set()
+        exclude_fields = set(exclude_fields) if exclude_fields else set()
+
+        # 获取模型字段与 Pydantic 模型字段的别名映射
+        field_alias_map = {}
+        for field_name, model_field in schema.model_fields.items():
+            alias = model_field.alias or field_name
+            field_alias_map[field_name] = alias
+
+        # 获取需要序列化的字段
+        fields_to_serialize = set(self._meta.fields_map.keys())
+        if m2m:
+            fields_to_serialize |= set(self._meta.fetch_fields)
+        if include_fields:
+            fields_to_serialize &= include_fields
+        if exclude_fields:
+            fields_to_serialize -= exclude_fields
+
+        result = {}
+        for field_name in fields_to_serialize:
+            value = getattr(self, field_name, None)
+
+            # 获取字段对应的别名，如果获取不到，则使用原始字段名
+            alias = field_alias_map.get(field_name, field_name)
+
+            # 处理关系字段
+            field_object = self._meta.fields_map.get(field_name)
+            if isinstance(field_object, fields.relational.RelationalField):
+                if m2m and isinstance(field_object, fields.relational.ManyToManyFieldInstance):
+                    related_objects = await value.all()
+                    related_schema = schema.model_fields[field_name].annotation.__args__[0]
+                    if isinstance(related_schema, type) and issubclass(related_schema, BaseModel):
+                        result[alias] = [ await obj.to_dict(schema=related_schema) for obj in related_objects]
+                    else:
+                        # 如果related_schema是基本类型，例如str
+                        result[alias] = [obj for obj in related_objects]
+                elif isinstance(field_object, fields.relational.ForeignKeyFieldInstance):
+                    related_obj = await value
+                    if related_obj:
+                        related_schema = schema.model_fields[field_name].annotation
+                        result[alias] = await related_obj.to_dict(schema=related_schema)
+                    else:
+                        result[alias] = None
+                else:
+                    continue
+            else:
+                # 处理基本数据类型
+                if isinstance(value, datetime):
+                    value = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
+                elif isinstance(value, UUID):
+                    value = str(value)
+                result[alias] = value
+
+        return result
 
 
 class EnumBase(Enum):
@@ -153,7 +220,6 @@ class StatusType(str, Enum):
 class GenderType(str, Enum):
     male = "1"
     female = "2"
-    unknow = "3"  # Soybean上没有
 
 
 class MenuType(str, Enum):
@@ -166,4 +232,4 @@ class IconType(str, Enum):
     local = "2"
 
 
-__all__ = ["BaseModel", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]
+__all__ = ["CRUDBaseModel", "EnumBase", "IntEnum", "StrEnum", "MethodType", "LogType", "LogDetailType", "StatusType", "GenderType", "MenuType", "IconType"]

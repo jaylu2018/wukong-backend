@@ -3,15 +3,15 @@ from typing import Annotated, Any
 from pydantic import Field, ConfigDict
 
 from app.models.base import MenuType, IconType
-from app.schemas.base import BaseSchema
+from app.schemas.base import CRUDBaseSchema
 
 
-class ButtonBase(BaseSchema):
+class ButtonBase(CRUDBaseSchema):
     button_code: str = Field(alias="buttonCode", description="按钮编码")
     button_desc: str = Field(alias="buttonDesc", description="按钮描述")
 
 
-class MenuBase(BaseSchema):
+class MenuBase(CRUDBaseSchema):
     menu_name: str = Field(alias="menuName", description="菜单名称")
     menu_type: MenuType = Field(alias="menuType", description="菜单类型")
     route_name: str = Field(alias="routeName", description="路由名称")

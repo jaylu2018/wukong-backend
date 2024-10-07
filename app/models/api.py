@@ -1,8 +1,8 @@
 from tortoise import fields
-from .base import BaseModel, MethodType, StatusType
+from .base import CRUDBaseModel, MethodType, StatusType
 
 
-class Api(BaseModel):
+class Api(CRUDBaseModel):
     id = fields.IntField(primary_key=True, description="API ID")
     path = fields.CharField(max_length=100, description="API路径")
     method = fields.CharEnumField(enum_type=MethodType, description="请求方法")

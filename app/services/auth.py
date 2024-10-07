@@ -10,12 +10,12 @@ from app.core.settings import APP_SETTINGS
 from app.models.base import LogType, StatusType, LogDetailType
 from app.schemas.auth import TokenPayload, CredentialsSchema
 from app.schemas.users import UserCreate, UserUpdate
-from app.services.base import CRUDBase
+from app.services.base import CRUDBaseService
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
-class AuthService(CRUDBase[User, UserCreate, UserUpdate]):
+class AuthService(CRUDBaseService[User, UserCreate, UserUpdate]):
     def __init__(self):
         super().__init__(User)
 
@@ -34,18 +34,18 @@ class AuthService(CRUDBase[User, UserCreate, UserUpdate]):
         user = await User.get_or_none(user_name=credentials.user_name)
         if not user:
             await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginUserNameVaild)
-            raise HTTPException(status_code=404, detail="用户未找到！")
+            raise HTTPException(status_code=401, detail="用户未找到！")
 
         logger.debug(f"Input password: {credentials.password}")
         logger.debug(f"Stored hashed password: {user.password}")
 
         if not self.verify_password(credentials.password, user.password):
             await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginErrorPassword)
-            raise HTTPException(status_code=404, detail="用户名或密码不正确！")
+            raise HTTPException(status_code=401, detail="用户名或密码不正确！")
 
         if user.status == StatusType.disable:
             await insert_log(log_type=LogType.UserLog, log_detail_type=LogDetailType.UserLoginForbid)
-            raise HTTPException(status_code=404, detail="用户已被禁用！")
+            raise HTTPException(status_code=401, detail="用户已被禁用！")
         return user
 
     @staticmethod
@@ -67,6 +67,9 @@ class AuthService(CRUDBase[User, UserCreate, UserUpdate]):
         except JWTError:
             raise HTTPException(status_code=401, detail="无效的Token")
         return token_data
+
+    async def to_dict(self):
+        ...
 
 
 auth_service = AuthService()

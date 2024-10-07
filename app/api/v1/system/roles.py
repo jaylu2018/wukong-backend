@@ -1,4 +1,5 @@
 import time
+from typing import List
 
 from fastapi import APIRouter, Depends
 
@@ -7,8 +8,8 @@ from app.core.dependency import get_current_user
 from app.models import User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.role import role_service
-from app.schemas.base import Response
-from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthorization
+from app.schemas.base import Response, ResponseList
+from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthorization, RoleBase
 from app.core.log import insert_log
 
 # 定义日志详细类型
@@ -33,7 +34,6 @@ class RoleCRUDRouter(BaseCRUDRouter[Role, RoleCreate, RoleUpdate, User]):
         @self.router.get(f"/{{{self.pk}}}/menus", summary="查看角色菜单")
         async def get_role_menus(
                 pk: int,
-                current_user: User = Depends(self.get_current_user)
         ):
             start_time = time.time()
             try:
@@ -49,7 +49,6 @@ class RoleCRUDRouter(BaseCRUDRouter[Role, RoleCreate, RoleUpdate, User]):
         async def update_role_menus(
                 pk: int,
                 role_in: RoleUpdateAuthorization,
-                current_user: User = Depends(self.get_current_user)
         ):
             start_time = time.time()
             try:
@@ -79,7 +78,7 @@ role_router = RoleCRUDRouter(
     tags=["角色管理"],
     log_type=LogType.AdminLog,
     pk="pk",
-    unique_fields=["role_code"],
+    list_response_model=ResponseList[List[RoleBase]]
 )
 
 router.include_router(role_router.router)

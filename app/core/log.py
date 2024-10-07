@@ -26,7 +26,7 @@ logger = logger.bind(trace_id="N/A")
 # 添加新的日志处理器
 logger.add(
     sys.stdout,
-    level="DEBUG",
+    level="INFO",
     format=log_format,
     enqueue=True,
     backtrace=True,

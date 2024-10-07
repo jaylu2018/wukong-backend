@@ -3,11 +3,11 @@ from typing import List, Optional, Any
 from fastapi import HTTPException
 
 from app.models import Role, Menu
-from app.schemas.roles import RoleCreate, RoleUpdate, RoleUpdateAuthorization
-from app.services.base import CRUDBase
+from app.schemas.roles import RoleCreate, RoleUpdate, RoleBase
+from app.services.base import CRUDBaseService
 
 
-class RoleService(CRUDBase[Role, RoleCreate, RoleUpdate]):
+class RoleService(CRUDBaseService[Role, RoleCreate, RoleUpdate]):
     def __init__(self):
         super().__init__(Role)
 
@@ -43,6 +43,9 @@ class RoleService(CRUDBase[Role, RoleCreate, RoleUpdate]):
 
     async def get_by_code(self, role_code: str) -> Role | None:
         return await Role.filter(role_code=role_code).first()
+
+    async def to_dict(self, role: Role) -> dict:
+        return await Role.to_dict(role, schema=RoleBase, m2m=False)
 
 
 role_service = RoleService()

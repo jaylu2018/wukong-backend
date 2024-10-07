@@ -2,13 +2,13 @@ from typing import List, Optional
 from pydantic import EmailStr, Field, BaseModel, ConfigDict
 
 from app.models.base import GenderType, StatusType
-from app.schemas.base import BaseSchema
+from app.schemas.base import CRUDBaseSchema
 
 
 class UserBase(BaseModel):
     user_name: str = Field(..., alias="userName", max_length=20)
     user_email: EmailStr = Field(..., alias="userEmail")
-    user_gender: GenderType = Field(GenderType.unknow, alias="userGender")
+    user_gender: GenderType = Field(GenderType.male, alias="userGender")
     nick_name: Optional[str] = Field(None, alias="nickName", max_length=30)
     user_phone: Optional[str] = Field(None, alias="userPhone", max_length=20)
     roles: Optional[List[str]] = Field(default_factory=list, alias="userRoles")
@@ -21,7 +21,7 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=128)
 
 
-class UserUpdate(BaseSchema):
+class UserUpdate(CRUDBaseSchema):
     user_email: Optional[EmailStr] = Field(None, alias="userEmail")
     user_gender: Optional[GenderType] = Field(None, alias="userGender")
     nick_name: Optional[str] = Field(None, alias="nickName", max_length=30)
@@ -33,7 +33,7 @@ class UserUpdate(BaseSchema):
     model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
 
 
-class UserOut(BaseSchema):
+class UserOut(CRUDBaseSchema):
     id: int
     user_name: str = Field(..., alias="userName")
     user_email: EmailStr = Field(..., alias="userEmail")

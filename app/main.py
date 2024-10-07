@@ -1,10 +1,11 @@
 import time
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 
 from app.api import api_router
-from app.core.exceptions import value_error_handler, global_exception_handler
+from app.core.exceptions import validation_exception_handler, global_exception_handler
 from app.core.log import insert_log, logger
 from app.utils.public import refresh_api_list
 from app.core.settings import APP_SETTINGS
@@ -42,7 +43,7 @@ app = FastAPI(
 app.include_router(api_router, prefix='/api')
 
 # 先注册具体的异常处理器
-app.add_exception_handler(ValueError, value_error_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 # 然后注册全局的异常处理器
 app.add_exception_handler(Exception, global_exception_handler)
 if __name__ == "__main__":

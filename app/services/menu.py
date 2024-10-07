@@ -1,13 +1,19 @@
 from typing import List, Optional
 
 from app.models import Menu, Button
-from app.schemas.menus import MenuCreate, MenuUpdate
-from app.services.base import CRUDBase
+from app.schemas.menus import MenuCreate, MenuUpdate, MenuBase
+from app.services.base import CRUDBaseService
+from app.services.role import role_service
 
 
-class MenuService(CRUDBase[Menu, MenuCreate, MenuUpdate]):
+class MenuService(CRUDBaseService[Menu, MenuCreate, MenuUpdate]):
     def __init__(self):
         super().__init__(Menu)
+
+    async def get_menus_by_role(self, role_id: int) -> List[Menu]:
+        role = await role_service.get(id=role_id)
+        menus = await role.menus.filter(constant=False)
+        return menus
 
     async def get_non_constant_menus(self) -> List[Menu]:
         return await self.model.filter(constant=False)
@@ -32,8 +38,6 @@ class MenuService(CRUDBase[Menu, MenuCreate, MenuUpdate]):
     async def get_first_level_menus(self) -> List[Menu]:
         return await self.model.filter(parent_id=0)
 
-    async def get_menus_with_buttons(self) -> List[Menu]:
-        return await self.model.filter(buttons__isnull=False).distinct()
 
     async def add_button(self, menu_id: int, button_id: int) -> bool:
         menu = await self.get(menu_id)
@@ -45,6 +49,9 @@ class MenuService(CRUDBase[Menu, MenuCreate, MenuUpdate]):
 
     async def get_menus_with_buttons(self) -> List[Menu]:
         return await Menu.filter(buttons__menu_buttons__not=None).distinct()
+
+    async def to_dict(self,menu: Menu) -> dict:
+        return await Menu.to_dict(menu, schema=MenuBase, m2m=False)
 
 
 menu_service = MenuService()

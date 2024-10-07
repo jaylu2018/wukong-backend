@@ -1,8 +1,8 @@
 from tortoise import fields
-from .base import BaseModel, LogType, LogDetailType
+from .base import CRUDBaseModel, LogType, LogDetailType
 
 
-class Log(BaseModel):
+class Log(CRUDBaseModel):
     id = fields.IntField(primary_key=True, description="日志ID")
     trace_id = fields.CharField(max_length=36, null=True, description="Trace ID")
     log_type = fields.CharEnumField(enum_type=LogType, description="日志类型")
@@ -16,7 +16,7 @@ class Log(BaseModel):
         table = "logs"
 
 
-class APILog(BaseModel):
+class APILog(CRUDBaseModel):
     id = fields.IntField(primary_key=True, description="API日志ID")
     ip_address = fields.CharField(max_length=60, description="IP地址")
     user_agent = fields.CharField(max_length=800, description="User-Agent")

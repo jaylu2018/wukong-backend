@@ -1,8 +1,8 @@
 from tortoise import fields
-from .base import BaseModel, StatusType
+from .base import CRUDBaseModel, StatusType
 
 
-class Button(BaseModel):
+class Button(CRUDBaseModel):
     id = fields.IntField(primary_key=True, description="菜单ID")
     button_code = fields.CharField(max_length=200, description="按钮编码")
     button_desc = fields.CharField(max_length=200, description="按钮描述")

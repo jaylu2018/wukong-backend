@@ -1,10 +1,10 @@
 from typing import List, Optional
 from app.models.api import Api
 from app.schemas.apis import ApiCreate, ApiUpdate
-from app.services.base import CRUDBase
+from app.services.base import CRUDBaseService
 
 
-class ApiService(CRUDBase[Api, ApiCreate, ApiUpdate]):
+class ApiService(CRUDBaseService[Api, ApiCreate, ApiUpdate]):
     def __init__(self):
         super().__init__(Api)
 
@@ -33,6 +33,9 @@ class ApiService(CRUDBase[Api, ApiCreate, ApiUpdate]):
                 "summary": api.summary,
             })
         return parent_map["root"]["children"]
+
+    async def to_dict(self):
+        ...
 
 
 api_service = ApiService()

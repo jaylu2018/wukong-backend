@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
 from typing import Generic, TypeVar, Type, List, Callable, Any, Optional, Dict
 from pydantic import BaseModel
 import time
@@ -12,6 +12,12 @@ ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 UserType = TypeVar("UserType")
+ListResponseModelType = TypeVar("ListResponseModelType")
+GetResponseModelType = TypeVar("GetResponseModelType")
+CreateResponseModelType = TypeVar("CreateResponseModelType")
+UpdateResponseModelType = TypeVar("UpdateResponseModelType")
+DeleteResponseModelType = TypeVar("DeleteResponseModelType")
+BatchDeleteResponseModelType = TypeVar("BatchDeleteResponseModelType")
 
 
 class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, UserType]):
@@ -28,7 +34,12 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
             tags: Optional[List[str]] = None,
             pk: str = "id",
             log_type: LogType = LogType.AdminLog,
-            unique_fields: Optional[List[str]] = None,
+            list_response_model: Optional[Type[ListResponseModelType]] = None,
+            get_response_model: Optional[Type[GetResponseModelType]] = None,
+            create_response_model: Optional[Type[CreateResponseModelType]] = None,
+            update_response_model: Optional[Type[UpdateResponseModelType]] = None,
+            delete_response_model: Optional[Type[DeleteResponseModelType]] = None,
+            batch_delete_response_model: Optional[Type[BatchDeleteResponseModelType]] = None,
     ):
         self.model = model
         self.create_schema = create_schema
@@ -39,129 +50,116 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
         self.pk = pk
         self.log_type = log_type
         self.log_detail_types = log_detail_types
-        self.unique_fields = unique_fields or []
         self.router = APIRouter(prefix=prefix, tags=tags)
+        self.list_response_model = list_response_model
+        self.get_response_model = get_response_model
+        self.create_response_model = create_response_model
+        self.update_response_model = update_response_model
+        self.delete_response_model = delete_response_model
+        self.batch_delete_response_model = batch_delete_response_model
         self._add_routes()
 
     def _add_routes(self):
-        @self.router.get("", summary=f"获取{self.model.__name__}列表")
+        # 获取具体的 Pydantic 模型
+        create_schema = self.create_schema
+        update_schema = self.update_schema
+
+        @self.router.get("", summary=f"获取{self.model.__name__}列表", response_model=self.list_response_model)
         async def list_items(
                 request: Request,
                 _: Any = Depends(self.permission_dependency),
                 page: int = Query(1, description="页码"),
-                page_size: int = Query(10, description="每页数量"),
+                size: int = Query(10, description="每页数量"),
         ):
-            return await self._handle_request(
-                self.log_detail_types["list"],
-                self._list_items,
-                request, page, page_size
-            )
+            start_time = time.time()
+            try:
+                query_params = dict(request.query_params)
+                # 移除分页参数
+                query_params.pop('page', None)
+                query_params.pop('size', None)
+                # 处理过滤条件，转换为模型字段的过滤
+                filters = {}
+                for key, value in query_params.items():
+                    filters[key] = value
+                total, items = await self.service.list(page=page, size=size, **filters)
+                data = [await self.service.to_dict(item) for item in items]
+                return ResponseList(data={"records": data, "total": total, "current": page, "size": size})
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")
 
-        @self.router.get(f"/{{{self.pk}:int}}", summary=f"获取单个{self.model.__name__}")
+        @self.router.get(f"/{{{self.pk}:int}}", summary=f"获取单个{self.model.__name__}", response_model=self.get_response_model)
         async def get_item(
                 pk: int,
                 _: Any = Depends(self.permission_dependency),
         ):
-            return await self._handle_request(
-                self.log_detail_types["retrieve"],
-                self._get_item,
-                pk
-            )
+            start_time = time.time()
+            try:
+                item = await self.service.get(id=pk)
+                data = await self.service.to_dict(item)
+                return Response(data=data)
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["retrieve"], detail=f"请求耗时 {duration:.2f} 秒")
 
-        @self.router.post("", summary=f"创建{self.model.__name__}")
+        @self.router.post("", summary=f"创建{self.model.__name__}", response_model=self.create_response_model)
         async def create_item(
-                item_in: CreateSchemaType,
+                item_in: create_schema = Body(...),
                 _: Any = Depends(self.permission_dependency),
         ):
-            return await self._handle_request(
-                self.log_detail_types["create"],
-                self._create_item,
-                item_in
-            )
+            start_time = time.time()
+            try:
+                item = await self.service.create(item_in)
+                return Response(data={"id": item.id})
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["create"], detail=f"请求耗时 {duration:.2f} 秒")
 
-        @self.router.patch(f"/{{{self.pk}:int}}", summary=f"更新{self.model.__name__}")
+        @self.router.put(f"/{{{self.pk}:int}}", summary=f"更新{self.model.__name__}", response_model=self.update_response_model)
         async def update_item(
                 pk: int,
-                item_in: UpdateSchemaType,
+                item_in: update_schema,
                 _: Any = Depends(self.permission_dependency),
         ):
-            return await self._handle_request(
-                self.log_detail_types["update"],
-                self._update_item,
-                pk, item_in
-            )
+            start_time = time.time()
+            try:
+                await self.service.update(id=pk, obj_in=item_in)
+                return Response(data={"id": pk})
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["update"], detail=f"请求耗时 {duration:.2f} 秒")
 
-        @self.router.delete(f"/{{{self.pk}:int}}", summary=f"删除{self.model.__name__}")
+        @self.router.delete(f"/{{{self.pk}:int}}", summary=f"删除{self.model.__name__}", response_model=self.delete_response_model)
         async def delete_item(
                 pk: int,
                 _: Any = Depends(self.permission_dependency),
         ):
-            return await self._handle_request(
-                self.log_detail_types["delete"],
-                self._delete_item,
-                pk
-            )
+            start_time = time.time()
+            try:
+                await self.service.remove(id=pk)
+                return Response(data={"id": pk})
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["delete"], detail=f"请求耗时 {duration:.2f} 秒")
 
-        @self.router.delete("/", summary=f"批量删除{self.model.__name__}")
+        @self.router.delete("/", summary=f"批量删除{self.model.__name__}", response_model=self.batch_delete_response_model)
         async def batch_delete_items(
                 ids: str = Query(..., description=f"{self.model.__name__} ID 列表，以逗号分隔"),
                 _: Any = Depends(self.permission_dependency),
         ):
-            return await self._handle_request(
-                self.log_detail_types["batch_delete"],
-                self._batch_delete_items,
-                ids
-            )
-
-    async def _handle_request(self, log_detail_type, handler, *args, **kwargs):
-        start_time = time.time()
-        try:
-            return await handler(*args, **kwargs)
-        finally:
-            duration = time.time() - start_time
-            await insert_log(log_type=self.log_type, log_detail_type=log_detail_type, detail=f"请求耗时 {duration:.2f} 秒")
-
-    async def _list_items(self, request, page, page_size):
-        query_params = dict(request.query_params)
-        query_params.pop('page', None)
-        query_params.pop('page_size', None)
-        filters = {key: value for key, value in query_params.items()}
-        total, items = await self.service.list(page=page, page_size=page_size, **filters)
-        data = [await self.service.to_dict(item) for item in items]
-        return ResponseList(data=data, total=total, current=page, size=page_size)
-
-    async def _get_item(self, pk):
-        item = await self.service.get(id=pk)
-        if not item:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} 未找到")
-        data = await self.service.to_dict(item)
-        return Response(data=data)
-
-    async def _create_item(self, item_in):
-        if self.unique_fields:
-            filters = {field: getattr(item_in, field) for field in self.unique_fields}
-            existing_item = await self.service.get(**filters)
-            if existing_item:
-                conflict_fields = ", ".join(self.unique_fields)
-                raise HTTPException(status_code=409, detail=f"{self.model.__name__}已存在，冲突字段：{conflict_fields}")
-        item = await self.service.create(obj_in=item_in)
-        return Response(data={"id": item.id})
-
-    async def _update_item(self, pk, item_in):
-        item = await self.service.update(id=pk, obj_in=item_in)
-        if not item:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} 未找到")
-        return Response(data={"id": pk})
-
-    async def _delete_item(self, pk):
-        success = await self.service.remove(id=pk)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"{self.model.__name__} 未找到")
-        return Response(data={"id": pk})
-
-    async def _batch_delete_items(self, ids):
-        id_list = [int(id.strip()) for id in ids.split(",") if id.strip().isdigit()]
-        deleted_count = await self.service.batch_remove(id_list)
-        if deleted_count == 0:
-            raise HTTPException(status_code=404, detail=f"未找到指定的{self.model.__name__}")
-        return Response(data={"deleted_ids": id_list})
+            start_time = time.time()
+            try:
+                id_list = [int(id.strip()) for id in ids.split(",") if id.strip().isdigit()]
+                await self.service.batch_remove(id_list)
+                return Response(data={"deleted_ids": id_list})
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+            finally:
+                duration = time.time() - start_time
+                await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["batch_delete"], detail=f"请求耗时 {duration:.2f} 秒")

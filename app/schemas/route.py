@@ -1,10 +1,10 @@
 from typing import Optional
 
 from app.models.base import MenuType, IconType, StatusType
-from app.schemas.base import BaseSchema
+from app.schemas.base import CRUDBaseSchema
 
 
-class RouteBase(BaseSchema):
+class RouteBase(CRUDBaseSchema):
     parent_id: int
     menu_type: MenuType
     menu_name: str
