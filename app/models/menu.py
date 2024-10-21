@@ -1,5 +1,5 @@
 from tortoise import fields
-from .base import CRUDBaseModel, MenuType, IconType, StatusType
+from .base import CRUDBaseModel, MenuType, StatusType
 
 
 class Menu(CRUDBaseModel):

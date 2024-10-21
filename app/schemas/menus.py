@@ -38,5 +38,3 @@ class MenuOut(MenuBase):
 
 class MenuSearch(CRUDBaseSchema):
     menu_name: str = Field(alias="menuName", description="菜单名称")
-    menu_type: MenuType = Field(alias="menuType", description="菜单类型")
-    status: str = Field(description="状态")
