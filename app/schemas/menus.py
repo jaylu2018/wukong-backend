@@ -34,3 +34,9 @@ class MenuUpdate(MenuCreate):
 class MenuOut(MenuBase):
     id: int = Field(alias="menuId", description="菜单ID")
     href: Optional[str] = Field(None, description="外链")
+
+
+class MenuSearch(CRUDBaseSchema):
+    menu_name: str = Field(alias="menuName", description="菜单名称")
+    menu_type: MenuType = Field(alias="menuType", description="菜单类型")
+    status: str = Field(description="状态")

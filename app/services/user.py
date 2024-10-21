@@ -45,6 +45,13 @@ class UserService(CRUDBaseService[User, UserCreate, UserUpdate]):
             await self.update_user_roles(user, obj_in.roles)
         return user
 
+    async def get_user_role(self, user_id: int) -> Role:
+        user = await self.get(user_id)
+        roles = await user.roles
+        if not roles:
+            raise HTTPException(status_code=400, detail="用户未分配角色")
+        return roles[0]
+
     @staticmethod
     async def update_user_roles(user: User, role_codes: List[str]) -> None:
         await user.roles.clear()
