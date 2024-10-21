@@ -13,6 +13,7 @@ class User(CRUDBaseModel):
     last_login = fields.DatetimeField(null=True, description="最后登录时间")
     roles = fields.ManyToManyField("app_system.Role", related_name="user_roles")
     status = fields.CharEnumField(StatusType, default=StatusType.enable, description="状态")
+    department = fields.ManyToManyField('app_system.Department', related_name='users', null=True, description="所属部门")
 
     class Meta:
         table = "users"

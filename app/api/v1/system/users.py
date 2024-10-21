@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
 from app.api.base import BaseCRUDRouter
-from app.core.dependency import get_current_user
 from app.models import User
 from app.models.base import LogType, LogDetailType
 from app.schemas.base import Response, ResponseList
@@ -37,6 +36,7 @@ class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
                 user_phone: Optional[str] = Query(None, description="用户手机"),
                 user_email: Optional[str] = Query(None, description="用户邮箱"),
                 status: Optional[str] = Query(None, description="用户状态"),
+                department_id: Optional[int] = Query(None, description="部门ID"),
         ):
             start_time = time.time()
             try:
@@ -47,6 +47,7 @@ class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
                     "user_phone__contains": user_phone,
                     "user_email__contains": user_email,
                     "status": status,
+                    "department_id": department_id,
                 }
                 filters = {k: v for k, v in search_params.items() if v is not None}
                 total, user_objs = await self.service.list(page=page, size=size, **filters)
@@ -88,7 +89,6 @@ user_router = UserCRUDRouter(
     update_schema=UserUpdate,
     service=user_service,
     log_detail_types=log_detail_types,
-    get_current_user=get_current_user,
     prefix="/users",
     tags=["用户管理"],
     log_type=LogType.AdminLog,

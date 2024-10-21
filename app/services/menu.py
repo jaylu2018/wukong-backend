@@ -1,7 +1,7 @@
 from typing import List, Optional
 
-from app.models import Menu, Button
-from app.schemas.menus import MenuCreate, MenuUpdate, MenuBase
+from app.models import Menu
+from app.schemas.menus import MenuCreate, MenuUpdate, MenuOut
 from app.services.base import CRUDBaseService
 from app.services.role import role_service
 
@@ -11,47 +11,45 @@ class MenuService(CRUDBaseService[Menu, MenuCreate, MenuUpdate]):
         super().__init__(Menu)
 
     async def get_menus_by_role(self, role_id: int) -> List[Menu]:
-        role = await role_service.get(id=role_id)
-        menus = await role.menus.filter(constant=False)
-        return menus
+        """
+        根据角色ID获取菜单列表
+        :param role_id: 角色ID
+        :return: 菜单列表
+        """
+        role = await role_service.get(role_id)
+        if not role:
+            return []
+        return await role.menus
 
-    async def get_non_constant_menus(self) -> List[Menu]:
-        return await self.model.filter(constant=False)
-
-    async def update(self, id: int, menu_in: MenuUpdate) -> Optional[Menu]:
+    async def update(self, id: int, obj_in: MenuUpdate) -> Optional[Menu]:
         menu = await self.get(id)
         if not menu:
             return None
 
-        update_data = menu_in.model_dump(exclude_unset=True, exclude={"buttons"})
+        update_data = obj_in.model_dump(exclude_unset=True)
         await menu.update_from_dict(update_data).save()
-
-        if menu_in.buttons is not None:
-            await menu.buttons.clear()
-            for button_id in menu_in.buttons:
-                button = await Button.get_or_none(id=button_id)
-                if button:
-                    await menu.buttons.add(button)
-
         return menu
 
-    async def get_first_level_menus(self) -> List[Menu]:
-        return await self.model.filter(parent_id=0)
+    async def build_menu_tree(self, menus: List[Menu], parent_id: int = 0) -> List[dict]:
+        """
+        递归生成菜单树
+        :param menus: 菜单列表
+        :param parent_id: 父菜单ID
+        :return: 菜单树列表
+        """
+        tree = []
+        for menu in menus:
+            if menu.parent_id == parent_id:
+                # 递归获取子菜单
+                children = await self.build_menu_tree(menus, menu.id)
+                menu_dict = await menu_service.to_dict(menu)
+                if children:
+                    menu_dict["children"] = children
+                tree.append(menu_dict)
+        return tree
 
-
-    async def add_button(self, menu_id: int, button_id: int) -> bool:
-        menu = await self.get(menu_id)
-        button = await Button.get_or_none(id=button_id)
-        if not menu or not button:
-            return False
-        await menu.buttons.add(button)
-        return True
-
-    async def get_menus_with_buttons(self) -> List[Menu]:
-        return await Menu.filter(buttons__menu_buttons__not=None).distinct()
-
-    async def to_dict(self,menu: Menu) -> dict:
-        return await Menu.to_dict(menu, schema=MenuBase, m2m=False)
+    async def to_dict(self, menu: Menu) -> dict:
+        return await Menu.to_dict(menu, schema=MenuOut, m2m=False)
 
 
 menu_service = MenuService()

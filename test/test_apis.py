@@ -6,16 +6,16 @@ from httpx import AsyncClient
 async def test_get_apis(async_client: AsyncClient, auth_headers):
     response = await async_client.get("/api/v1/system/apis", headers=auth_headers)
     assert response.status_code == 200
-    # json_data = response.json()
-    # assert "records" in json_data["data"]
+    json_data = response.json()
+    assert "records" in json_data["data"]
 
 
 @pytest.mark.asyncio
 async def test_get_api(async_client: AsyncClient, auth_headers):
     response = await async_client.get(f"/api/v1/system/apis/1", headers=auth_headers)
     assert response.status_code == 200
-    # json_data = response.json()
-    # assert "data" in json_data
+    json_data = response.json()
+    assert "data" in json_data
 
 
 @pytest.mark.asyncio
@@ -29,8 +29,6 @@ async def test_create_api(async_client: AsyncClient, auth_headers):
     }
     response = await async_client.post("/api/v1/system/apis", json=api_data, headers=auth_headers)
     assert response.status_code == 200
-    # json_data = response.json()
-    # assert "created_id" in json_data["data"]
 
 
 @pytest.mark.asyncio
@@ -40,8 +38,15 @@ async def test_update_api(async_client: AsyncClient, auth_headers):
     }
     response = await async_client.patch(f"/api/v1/system/apis/1", json=api_update_data, headers=auth_headers)
     assert response.status_code == 200
-    # json_data = response.json()
-    # assert json_data["data"]["updated_id"] == 1
+    json_data = response.json()
+    assert json_data["data"]["id"] == 1
+
+
+async def test_delete_api(async_client: AsyncClient, auth_headers):
+    response = await async_client.delete(f"/api/v1/system/apis/1", headers=auth_headers)
+    assert response.status_code == 200
+    json_data = response.json()
+    assert json_data["data"]["id"] == 1
 
 
 @pytest.mark.asyncio
@@ -49,8 +54,8 @@ async def test_batch_delete_apis(async_client: AsyncClient, auth_headers):
     ids = "1,2,3"
     response = await async_client.delete(f"/api/v1/system/apis/?ids={ids}", headers=auth_headers)
     assert response.status_code == 200
-    # json_data = response.json()
-    # assert "deleted_ids" in json_data["data"]
+    json_data = response.json()
+    assert "deleted_ids" in json_data["data"]
 
 
 @pytest.mark.asyncio

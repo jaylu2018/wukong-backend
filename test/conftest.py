@@ -5,7 +5,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from tortoise import Tortoise
 
-from reset_database import init
+from sql.reset_database import init
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

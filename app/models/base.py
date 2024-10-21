@@ -54,7 +54,7 @@ class CRUDBaseModel(models.Model):
                     related_objects = await value.all()
                     related_schema = schema.model_fields[field_name].annotation.__args__[0]
                     if isinstance(related_schema, type) and issubclass(related_schema, BaseModel):
-                        result[alias] = [ await obj.to_dict(schema=related_schema) for obj in related_objects]
+                        result[alias] = [await obj.to_dict(schema=related_schema) for obj in related_objects]
                     else:
                         # 如果related_schema是基本类型，例如str
                         result[alias] = [obj for obj in related_objects]
@@ -73,6 +73,8 @@ class CRUDBaseModel(models.Model):
                     value = value.strftime(APP_SETTINGS.DATETIME_FORMAT)
                 elif isinstance(value, UUID):
                     value = str(value)
+                elif isinstance(value, Enum):
+                    value = value.value
                 result[alias] = value
 
         return result
@@ -116,7 +118,7 @@ class LogDetailType(str, Enum):
     1000-1999 内置
     1100-1199 系统
     1200-1299 用户
-    1300-1399 用例
+    1300-1399 部门
     1400-1499 菜单
     1500-1599 角色
     1600-1699 用户
@@ -143,15 +145,14 @@ class LogDetailType(str, Enum):
     UserLoginErrorPassword = "1212"
     UserLoginForbid = "1213"
 
-    CaseGetList = "1301"
-    CaseGetTree = "1302"
-    CaseRefresh = "1303"
+    DepartmentGetList = "1301"
 
-    CaseGetOne = "1311"
-    CaseCreateOne = "1312"
-    CaseUpdateOne = "1313"
-    CaseDeleteOne = "1314"
-    CaseBatchDelete = "1315"
+    DepartmentGetOne = "1311"
+    DepartmentCreateOne = "1312"
+    DepartmentUpdateOne = "1313"
+    DepartmentDeleteOne = "1314"
+    DepartmentBatchDeleteOne = "1315"
+    DepartmentGetTree = "1316"
 
     MenuGetList = "1401"
     MenuGetTree = "1402"
@@ -225,6 +226,7 @@ class GenderType(str, Enum):
 class MenuType(str, Enum):
     catalog = "1"  # 目录
     menu = "2"  # 菜单
+    button = "3"
 
 
 class IconType(str, Enum):

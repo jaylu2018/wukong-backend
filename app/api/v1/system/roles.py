@@ -1,10 +1,9 @@
 import time
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from app.api.base import BaseCRUDRouter
-from app.core.dependency import get_current_user
 from app.models import User, Role
 from app.models.base import LogType, LogDetailType
 from app.services.role import role_service
@@ -73,7 +72,6 @@ role_router = RoleCRUDRouter(
     update_schema=RoleUpdate,
     service=role_service,
     log_detail_types=log_detail_types,
-    get_current_user=get_current_user,
     prefix="/roles",
     tags=["角色管理"],
     log_type=LogType.AdminLog,

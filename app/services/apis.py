@@ -1,6 +1,6 @@
 from typing import List, Optional
 from app.models.api import Api
-from app.schemas.apis import ApiCreate, ApiUpdate
+from app.schemas.apis import ApiCreate, ApiUpdate, ApiOut
 from app.services.base import CRUDBaseService
 
 
@@ -34,8 +34,8 @@ class ApiService(CRUDBaseService[Api, ApiCreate, ApiUpdate]):
             })
         return parent_map["root"]["children"]
 
-    async def to_dict(self):
-        ...
+    async def to_dict(self, api: Api) -> dict:
+        return await Api.to_dict(api, schema=ApiOut, m2m=False)
 
 
 api_service = ApiService()

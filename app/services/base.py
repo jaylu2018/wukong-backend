@@ -3,6 +3,8 @@ from typing import Generic, TypeVar, Type, List, Any
 from tortoise.models import Model
 from pydantic import BaseModel
 
+from app.core.log import logger
+
 ModelType = TypeVar("ModelType", bound=Model)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
@@ -19,13 +21,7 @@ class CRUDBaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType], AB
             raise ValueError(f"{self.model.__name__} ID 为 {id} 的对象未找到")
         return obj
 
-    async def list(
-            self,
-            page: int = 1,
-            size: int = 10,
-            order: List[str] = None,
-            **filters: Any
-    ) -> tuple[int, List[ModelType]]:
+    async def list(self, page: int = 1, size: int = 10, order: List[str] = None, **filters: Any) -> tuple[int, List[ModelType]]:
         if order is None:
             order = []
         query = self.model.filter(**filters)

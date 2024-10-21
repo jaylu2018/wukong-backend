@@ -8,7 +8,7 @@ from app.models import User
 from app.schemas.auth import CredentialsSchema
 from app.schemas.base import Response
 from app.services.auth import auth_service
-from app.core.dependency import get_current_user, DependAuth
+from app.core.dependency import DependAuth
 from app.models.base import LogType, LogDetailType
 from app.services.user import user_service
 
@@ -24,7 +24,7 @@ class AuthCRUDRouter(BaseCRUDRouter):
             # 插入日志
             await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["login"])
             # 返回响应
-            return Response(data={"accessToken": access_token, "token_type": "bearer"})
+            return Response(data={"token": access_token, "token_type": "bearer"})
 
         @self.router.post("/logout", summary="用户登出")
         async def logout():
@@ -47,13 +47,6 @@ class AuthCRUDRouter(BaseCRUDRouter):
             # 获取用户角色列表
             roles = [{"code": role.role_code, "id": role.id} for role in await current_user.roles.all()]
 
-            # 获取用户按钮权限
-            buttons = set()
-            for role in await current_user.roles.all():
-                role_buttons = await role.buttons.all()
-                buttons.update([button.button_code for button in role_buttons])
-            buttons = list(buttons)
-
             # 构建返回的数据字典
             data = {
                 "nickName": user_dict.get("nick_name"),
@@ -68,7 +61,6 @@ class AuthCRUDRouter(BaseCRUDRouter):
                 "userEmail": current_user.user_email,
                 "user_id": current_user.id,
                 "roles": roles,
-                "buttons": buttons
             }
             return Response(data=data)
 
@@ -89,14 +81,13 @@ auth_router = AuthCRUDRouter(
     update_schema=CredentialsSchema,
     service=auth_service,
     log_detail_types=log_detail_types,
-    get_current_user=get_current_user,
-    prefix="",
+    prefix="/auth",
     tags=["权限认证"],
     log_type=LogType.AdminLog,
 )
 
 
-@router.post("/token")
+@router.post("/auth/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await auth_service.authenticate_user(CredentialsSchema(user_name=form_data.username, password=form_data.password))
     access_token = auth_service.create_access_token(data={"userId": user.id, "userName": user.user_name, "tokenType": "accessToken"})

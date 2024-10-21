@@ -3,7 +3,7 @@ from typing import Generic, TypeVar, Type, List, Callable, Any, Optional, Dict
 from pydantic import BaseModel
 import time
 
-from app.core.dependency import get_current_user, PermissionService
+from app.core.dependency import PermissionService
 from app.models.base import LogType, LogDetailType
 from app.schemas.base import Response, ResponseList
 from app.core.log import insert_log
@@ -28,7 +28,6 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
             update_schema: Type[UpdateSchemaType],
             service,
             log_detail_types: Dict[str, LogDetailType],
-            get_current_user: Callable = get_current_user,
             permission_dependency: Callable = PermissionService.has_permission,
             prefix: str = "",
             tags: Optional[List[str]] = None,
@@ -45,7 +44,6 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
         self.create_schema = create_schema
         self.update_schema = update_schema
         self.service = service
-        self.get_current_user = get_current_user
         self.permission_dependency = permission_dependency
         self.pk = pk
         self.log_type = log_type

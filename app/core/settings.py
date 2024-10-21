@@ -36,10 +36,10 @@ class Settings(BaseSettings):
         "apps": {
             "app_system": {"models": [
                 "app.models.user",
+                "app.models.department",
                 "app.models.role",
                 "app.models.menu",
                 "app.models.api",
-                "app.models.button",
                 "app.models.log",
                 "aerich.models"
             ], "default_connection": "conn_system"},

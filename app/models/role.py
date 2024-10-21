@@ -12,7 +12,6 @@ class Role(CRUDBaseModel):
 
     menus = fields.ManyToManyField("app_system.Menu", related_name="role_menus")
     apis = fields.ManyToManyField("app_system.Api", related_name="role_apis")
-    buttons = fields.ManyToManyField("app_system.Button", related_name="role_buttons")
 
     class Meta:
         table = "roles"

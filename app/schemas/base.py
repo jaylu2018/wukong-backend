@@ -14,7 +14,7 @@ class CRUDBaseSchema(BaseModel):
 
 
 class Response(BaseModel, Generic[T]):
-    code: str = Field(default="0000")
+    code: int = Field(default=0)
     msg: str = Field(default="OK")
     data: Optional[T] = None
 
@@ -27,7 +27,7 @@ class DataList(BaseModel, Generic[T]):
 
 
 class ResponseList(BaseModel, Generic[T]):
-    code: str = Field(default="0000")
+    code: int = Field(default=0)
     msg: str = Field(default="OK")
     data: DataList[T]
 

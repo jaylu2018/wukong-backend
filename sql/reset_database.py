@@ -26,18 +26,19 @@ async def init():
 
     # 使用 SQL 文件初始化数据
     sql_files = [
-        "sql/roles.sql",
-        "sql/menus.sql",
-        "sql/buttons.sql",
-        "sql/users.sql",
-        "sql/roles_menus.sql",
-        "sql/roles_buttons.sql",
-        "sql/users_roles.sql",
-        "sql/apis.sql"
+        "roles.sql",
+        "menus.sql",
+        "departments.sql",
+        "users.sql",
+        "users_departments.sql",
+        "roles_menus.sql",
+        "users_roles.sql",
+        "apis.sql"
     ]
     for sql_file in sql_files:
         sql_file_path = os.path.join(current_dir, sql_file)
         with open(sql_file_path, "r") as f:
+            print(f"Reset table {sql_file}")
             sql_commands = f.read()
             await conn.execute_script(sql_commands)  # 使用 execute_script 执行 SQL 文件
 

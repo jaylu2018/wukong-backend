@@ -1,0 +1,1 @@
+INSERT INTO departments (create_time, update_time, id, name, manager_name, manager_id, "order", parent_id) VALUES ('2024-10-15 16:53:46.238000+08:00', '2024-10-15 16:54:58.332555+08:00', 1, 'NVX', '管理员', 1, 0, 0);
