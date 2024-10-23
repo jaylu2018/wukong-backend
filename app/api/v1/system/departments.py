@@ -1,6 +1,6 @@
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from typing import List
 
 from app.api.base import BaseCRUDRouter
@@ -8,7 +8,7 @@ from app.core.log import insert_log
 from app.models import User
 from app.models.department import Department
 from app.models.base import LogType, LogDetailType
-from app.schemas.departments import DepartmentOut, DepartmentCreate, DepartmentUpdate
+from app.schemas.departments import DepartmentOut, DepartmentCreate, DepartmentUpdate, DepartmentSearch
 from app.services.department import department_service
 from app.schemas.base import ResponseList, Response
 
@@ -28,10 +28,24 @@ class DepartmentCRUDRouter(BaseCRUDRouter[Department, DepartmentCreate, Departme
     def _add_routes(self):
         # 获取部门树形结构
         @self.router.get("/tree/", summary="获取部门树形结构", response_model=Response[List[DepartmentOut]])
-        async def get_department_tree():
+        async def get_department_tree(request: Request):
             start_time = time.time()
             try:
-                department_tree = await self.service.get_departments_tree()
+                query_params = dict(request.query_params)
+                _, departments = await self.service.list()
+                schema_fields = {field.alias: field_name for field_name, field in DepartmentSearch.model_fields.items() if field.alias}
+                filters = {schema_fields.get(key, key): value for key, value in query_params.items()}
+                filtered_departments = [
+                    department for department in departments
+                    if all(
+                        value in getattr(department, key, "") if key == "name" else getattr(department, key, None) == value
+                        for key, value in filters.items()
+                    )
+                ]
+                department_tree = await self.service.get_departments_tree(filtered_departments)
+                if not department_tree and filtered_departments:
+                    department_list = [await self.service.to_dict(department) for department in filtered_departments]
+                    return Response(data=department_list)
                 return Response(data=department_tree)
             finally:
                 duration = time.time() - start_time

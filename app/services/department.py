@@ -2,38 +2,37 @@ from typing import List
 
 from app.models.department import Department
 from app.schemas.departments import DepartmentCreate, DepartmentUpdate, DepartmentBase
-from app.services.base import CRUDBaseService
+from app.services.base import CRUDBaseService, CreateSchemaType, ModelType
+from app.services.user import user_service
 
 
 class DepartmentService(CRUDBaseService[Department, DepartmentCreate, DepartmentUpdate]):
     def __init__(self):
         super().__init__(Department)
 
-    async def get_departments_tree(self) -> List[dict]:
-        # 获取所有部门并按顺序排序
-        departments = await self.model.all().order_by('order')
-        # 创建一个部门字典，键为部门ID，值为部门信息字典
-        dept_dict = {dept.id: await self.to_dict(dept) for dept in departments}
-        print(dept_dict)
+    async def create(self, obj_in: CreateSchemaType) -> ModelType:
+        manager = await user_service.get(id=obj_in.manager_id)
+        if manager:
+            obj_in.manager_name = manager.user_name
 
-        # 初始化树形结构列表
-        tree = []
+        return await super().create(obj_in)
 
-        # 构建父子关系
-        for dept in departments:
-            dept_id = dept.id
-            parent_id = dept.parent_id
-            dept_info = dept_dict[dept_id]
+    async def update(self, id: int, obj_in: CreateSchemaType) -> ModelType:
+        manager = await user_service.get(id=obj_in.manager_id)
+        if manager:
+            obj_in.manager_name = manager.user_name
 
-            if parent_id == 0 or parent_id not in dept_dict:
-                # 如果是顶级部门或父部门不存在，直接添加到树中
-                tree.append(dept_info)
-            else:
-                # 如果有父部门，将当前部门添加到父部门的children列表中
-                parent_dept = dept_dict[parent_id]
-                if 'children' not in parent_dept:
-                    parent_dept['children'] = []
-                parent_dept['children'].append(dept_info)
+        return await super().update(id, obj_in)
+
+    async def get_departments_tree(self, departments: List[Department], parent_id: int = 0) -> List[dict]:
+        tree = []  # 初始化树形结构列表
+        for department in departments:
+            if department.parent_id == parent_id:
+                children = await self.get_departments_tree(departments, department.id)  # 递归获取子菜单
+                department_dict = await department_service.to_dict(department)
+                if children:
+                    department_dict["children"] = children
+                tree.append(department_dict)
         return tree
 
     async def to_dict(self, department: Department) -> dict:

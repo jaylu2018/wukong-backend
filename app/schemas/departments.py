@@ -18,9 +18,14 @@ class DepartmentOut(DepartmentBase):
     id: Optional[int] = Field(None, alias="departmentId", description="部门ID")
     children: Optional[List['DepartmentOut']] = None
 
+
 class DepartmentCreate(DepartmentBase):
     ...
 
 
 class DepartmentUpdate(DepartmentBase):
     name: Optional[str] = Field(None, description="部门名称")
+
+
+class DepartmentSearch(CRUDBaseSchema):
+    name: str = Field(description="部门名称")

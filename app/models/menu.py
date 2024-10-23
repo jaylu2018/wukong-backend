@@ -1,5 +1,5 @@
 from tortoise import fields
-from .base import CRUDBaseModel, MenuType, StatusType
+from .base import CRUDBaseModel, MenuType
 
 
 class Menu(CRUDBaseModel):
@@ -13,8 +13,8 @@ class Menu(CRUDBaseModel):
     icon = fields.CharField(null=True, max_length=100, description="图标名称")
     href = fields.CharField(null=True, max_length=200, description="外链")
     keep_alive = fields.BooleanField(default=False, description="是否缓存")
-    visible_flag = fields.BooleanField(default=False, description="是否可见")
-    status = fields.CharEnumField(enum_type=StatusType, default=StatusType.enable, description="状态")
+    visible_flag = fields.BooleanField(default=True, description="是否可见")
+    disabled_flag = fields.BooleanField(default=True, description="是否禁用")
     web_permission = fields.CharField(null=True, max_length=200, description="前端权限")
     api_permission = fields.CharField(null=True, max_length=200, description="后段权限")
 
