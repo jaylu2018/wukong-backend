@@ -52,7 +52,7 @@ class UserCRUDRouter(BaseCRUDRouter[User, UserCreate, UserUpdate, User]):
                 filters = {k: v for k, v in search_params.items() if v is not None}
                 total, user_objs = await self.service.list(page=page, size=size, **filters)
                 records = [await self.service.to_dict_with_roles(user) for user in user_objs]
-                return ResponseList(data={"records": records, "total": total, "current": page, "size": size})
+                return ResponseList(data={"list": records, "total": total, "current": page, "size": size})
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")

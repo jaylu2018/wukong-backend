@@ -81,7 +81,7 @@ class BaseCRUDRouter(Generic[ModelType, CreateSchemaType, UpdateSchemaType, User
                     filters[key] = value
                 total, items = await self.service.list(page=page, size=size, **filters)
                 data = [await self.service.to_dict(item) for item in items]
-                return ResponseList(data={"records": data, "total": total, "current": page, "size": size})
+                return ResponseList(data={"list": data, "total": total, "current": page, "size": size})
             finally:
                 duration = time.time() - start_time
                 await insert_log(log_type=self.log_type, log_detail_type=self.log_detail_types["list"], detail=f"请求耗时 {duration:.2f} 秒")

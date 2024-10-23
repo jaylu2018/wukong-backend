@@ -20,7 +20,7 @@ class Response(BaseModel, Generic[T]):
 
 
 class DataList(BaseModel, Generic[T]):
-    records: T
+    list: T
     total: Optional[int] = None
     current: Optional[int] = None
     size: Optional[int] = None
